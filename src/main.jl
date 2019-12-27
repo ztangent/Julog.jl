@@ -23,29 +23,43 @@ builtins = [[true, false, :and, :or,
             :unifies, :is, :not, :!,
             :cut, :fail]; comp_ops]
 
-"Given an environment, evaluate all variables in a FOL term to constants."
-function eval_term(term::Term, env::Dict, funcs::Dict=Dict())
-    if isa(term, Const)
-        return term
-    elseif isa(term, Var)
-        # Return constant that variable is bound to, nothing otherwise
-        return term in keys(env) ? env[term] : nothing
+"
+    eval_term(term, env[, funcs])
+
+Given an environment, evaluate all variables in a FOL term to constants.
+
+# Arguments
+- `term::Term`: A term to evaluate.
+- `env::Dict{Var,Term}`: An environment mapping variables to terms.
+- `funcs::Dict=Dict()`: Additional custom functions (e.g. custom math).
+"
+eval_term(term::Term, env::Subst, funcs::Dict=Dict()) = error("Not implemented")
+eval_term(term::Const, env::Subst, funcs::Dict=Dict()) = term
+eval_term(term::Var, env::Subst, funcs::Dict=Dict()) = get(env, term, nothing)
+function eval_term(term::Compound, env::Subst, funcs::Dict=Dict())
+    args = [eval_term(a, env, funcs) for a in term.args]
+    funcs = merge(default_funcs, funcs)
+    if any([a == nothing for a in args])
+        return nothing
+    elseif term.name in keys(funcs)
+        # Evaluate custom-defined functions
+        r = Const(funcs[term.name]([a.name for a in args]...))
+        return r
     else
-        args = [eval_term(a, env, funcs) for a in term.args]
-        funcs = merge(default_funcs, funcs)
-        if any([a == nothing for a in args])
-            return nothing
-        elseif term.name in keys(funcs)
-            # Evaluate custom-defined functions
-            r = Const(funcs[term.name]([a.name for a in args]...))
-            return r
-        else
-            return Compound(term.name, args)
-        end
+        return Compound(term.name, args)
     end
 end
 
-"Unifies src with dst and returns a dictionary of any substitutions needed."
+"""
+    unify(src, dst[, occurs_check])
+
+Unifies src with dst and returns a dictionary of any substitutions needed.
+
+# Arguments
+- `src::Term`: A term to unify.
+- `dst::Term`: A term to unify (src/dst order does not matter).
+- `occurs_check::Bool=true`: Whether to perform the occurs check.
+"""
 function unify(src::Term, dst::Term, occurs_check::Bool=true)
     stack = Tuple{Term, Term}[(src, dst)]
     subst = Subst()
@@ -169,7 +183,32 @@ function handle_builtins!(queue, clauses, goal, term; options...)
     return false
 end
 
-"SLD-resolution of goals with additional Prolog-like control flow."
+"""
+    resolve(goals, clauses; <keyword arguments>)
+
+SLD-resolution of goals with additional Prolog-like control flow.
+
+# Arguments
+- `goals::Vector{<:Term}`: A list of FOL terms to be prove or query.
+- `clauses::Vector{Clause}`: A list of FOL clauses.
+- `env::Subst=Subst([])`: An initial environment mapping variables to terms.
+- `mode::String="all"`: How results should be returned.
+  "all" returns all possible substitiutions. "any" returns the first
+  satisfying substitution found. "interactive" prompts for continuation
+  after each satisfying substitution is found.
+- `occurs_check::Bool=false`: Flag for occurs check during unification
+- `funcs::Dict=Dict()`: Custom functions for evaluating terms.
+  A function `f` should be stored as funcs[:f] = f
+"""
+function resolve(goals::Vector{<:Term}, clauses::Vector{Clause}; options...)
+    # Convert list of clauses to dict for efficiency
+    clause_dict = Dict{Symbol,Vector{Clause}}()
+    for c in clauses
+        push!(get!(clause_dict, c.head.name, Clause[]), c)
+    end
+    return resolve(goals, clause_dict; options...)
+end
+
 function resolve(goals::Vector{<:Term}, clauses::Dict{Symbol,Vector{Clause}};
                  options...)
     # Unpack options
@@ -249,13 +288,4 @@ function resolve(goals::Vector{<:Term}, clauses::Dict{Symbol,Vector{Clause}};
     end
     # Goals were satisfied if we found valid substitutions
     return (length(subst) > 0), subst
-end
-
-function resolve(goals::Vector{<:Term}, clauses::Vector{Clause}; options...)
-    # Convert list of clauses to dict for efficiency
-    clause_dict = Dict{Symbol,Vector{Clause}}()
-    for c in clauses
-        push!(get!(clause_dict, c.head.name, Clause[]), c)
-    end
-    return resolve(goals, clause_dict; options...)
 end
