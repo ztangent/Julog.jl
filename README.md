@@ -2,7 +2,7 @@
 
 A Julia package for first order logic (FOL) programming, based heavily on Prolog.
 
-## Example
+## Examples
 
 [Terms](http://www.dai.ed.ac.uk/groups/ssp/bookpages/quickprolog/node5.html) and [Horn clauses](https://en.wikipedia.org/wiki/Horn_clause) can be expressed in Prolog-like syntax using the
 `@fol` macro:
@@ -48,6 +48,31 @@ julia> subst
   {Y => huineng, X => daoxin}
 ```
 
+## Comparison with Prolog syntax
+
+`FOL` uses syntax very similar to Prolog. In particular, users should
+note that argument-free terms with initial capitals are parsed as variables,
+whereas lowercase terms are parsed as constants:
+```julia-repl
+julia> typeof(@fol(Person))
+Var
+julia> typeof(@fol(person))
+Const
+```
+
+However, several important operators differ from Prolog, as shown by the examples below:
+
+| FOL                                      | Prolog                                 | Meaning                             |
+|------------------------------------------|----------------------------------------|-------------------------------------|
+| `human(socrates) <<= true.`              | `human(socrates).`                     | Socrates is human.                  |
+| `mortal(X) <<= human(X)`                 | `mortal(X) :- human(X).`               | If X is human, X is mortal.         |
+| `!mortal(gaia)`                          | `\+mortal(gaia)`                       | Gaia is not mortal.                 |
+| `mortal(X) <<= can_live(X) & can_die(X)` | `mortal(X) :- can_live(X), can_die(X)` | X is mortal if it can live and die. |
+
+In words, `<<=` replaces the Prolog turnstile `:-`, `<<= true` replaces `.` when stating facts, `!` replaces `\+` for negation, there is no longer a special
+operator for `cut`, `&` replaces `,` in the bodies of
+definite clauses, and there is no `or` operator like the `;` in Prolog.
+
 ## Acknowledgements
 
-This implementation was made by referring to Chris Meyer's [Python interpreter for Prolog](http://www.openbookproject.net/py4fun/prolog/intro.html), as well as the unification and SLD-resolution algorithms presented in [An Introduction to Prolog](https://link.springer.com/content/pdf/bbm%3A978-3-642-41464-0%2F1.pdf) by Pierre M. Nugues.
+This implementation was made with reference to Chris Meyer's [Python interpreter for Prolog](http://www.openbookproject.net/py4fun/prolog/intro.html), as well as the unification and SLD-resolution algorithms presented in [An Introduction to Prolog](https://link.springer.com/content/pdf/bbm%3A978-3-642-41464-0%2F1.pdf) by Pierre M. Nugues.
