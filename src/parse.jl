@@ -87,7 +87,17 @@ function parse_fol(expr)
     end
 end
 
-"Define @fol as a macro to parse and return FOL expressions."
+"Macro that parses and return FOL expressions."
 macro fol(expr)
     return parse_fol(expr)
+end
+
+"Macro that parses FOL substitutions, e.g. {X => hello, Y => world}."
+macro folsub(expr)
+    if !(isa(expr, Expr) && expr.head == :braces)
+        error("Invalid format for FOL substitutions.")
+    end
+    vars = [Var(a.args[2]) for a in expr.args]
+    terms = [eval(parse_term(a.args[3])) for a in expr.args]
+    return Subst(v => t for (v,t) in zip(vars, terms))
 end

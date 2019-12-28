@@ -289,3 +289,7 @@ function resolve(goals::Vector{<:Term}, clauses::Dict{Symbol,Vector{Clause}};
     # Goals were satisfied if we found valid substitutions
     return (length(subst) > 0), subst
 end
+
+"Resolve a single term with respect to a set of clauses."
+resolve(goal::Term, clauses::Vector{Clause}; options...) =
+    resolve(Term[goal], clauses; options...)

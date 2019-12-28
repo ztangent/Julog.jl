@@ -6,6 +6,7 @@ include("utils.jl")
 include("main.jl")
 
 export Const, Var, Compound, Term, Clause, Subst
-export @fol, is_ground, substitute, eval_term, unify, resolve
+export is_ground, substitute, eval_term, unify, resolve
+export @fol, @folsub
 
 end # module
