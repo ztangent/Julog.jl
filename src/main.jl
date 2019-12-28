@@ -35,7 +35,8 @@ Given an environment, evaluate all variables in a FOL term to constants.
 "
 eval_term(term::Term, env::Subst, funcs::Dict=Dict()) = error("Not implemented")
 eval_term(term::Const, env::Subst, funcs::Dict=Dict()) = term
-eval_term(term::Var, env::Subst, funcs::Dict=Dict()) = get(env, term, nothing)
+eval_term(term::Var, env::Subst, funcs::Dict=Dict()) =
+    term in keys(env) ? eval_term(env[term], env, funcs) : nothing
 function eval_term(term::Compound, env::Subst, funcs::Dict=Dict())
     args = [eval_term(a, env, funcs) for a in term.args]
     funcs = merge(default_funcs, funcs)
@@ -129,15 +130,23 @@ function handle_builtins!(queue, clauses, goal, term; options...)
         return false
     elseif term.name == :is
         # Handle is/2 predicate
-        qn = eval_term(term.args[1], goal.env, funcs)
-        ans = eval_term(term.args[2], goal.env, funcs)
-        # Check if first arg is free variable
-        if qn == nothing
-            goal.env[term.args[1].name] = ans # Bind variable if free
+        qn, ans = term.args[1], eval_term(term.args[2], goal.env, funcs)
+        # Failure if RHS is insufficiently instantiated
+        if ans == nothing return false end
+        # LHS can either be a variable or evaluate to a constant
+        if isa(qn, Var) && !(qn in keys(goal.env))
+            # If LHS is a free variable, bind to RHS
+            for (k, v) in goal.env
+                goal.env[k] = substitute(v, qn, ans)
+            end
+            goal.env[qn] = ans
             return true
         else
-            return false
+            # If LHS evaluates to a constant, check if it is equal to RHS
+            qn = eval_term(qn, goal.env, funcs)
+            return qn == nothing ? false : qn == ans
         end
+        return false
     elseif term.name == :unifies
         # Check if all arguments unify
         term = substitute(term, goal.env)
@@ -273,7 +282,7 @@ function resolve(goals::Vector{<:Term}, clauses::Dict{Symbol,Vector{Clause}};
         # Substitute variables in term
         subst_term = freshen(substitute(term, goal.env))
         # Iterate across clause set with matching head functor
-        matched_clauses = get(clauses, term.name, Clause[])
+        matched_clauses = get(clauses, subst_term.name, Clause[])
         matched = false
         for c in matched_clauses
             # If term unifies with head of a clause, add it as a subgoal

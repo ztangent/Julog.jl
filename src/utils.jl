@@ -14,7 +14,7 @@ is_ground(t::Compound) = all([is_ground(a) for a in t.args])
 occurs_in(v::Var, t::Term) = error("Not implemented.")
 occurs_in(v::Var, t::Const) = false
 occurs_in(v::Var, t::Var) = (v.name == t.name)
-occurs_in(v::Var, t::Compound) = any([occurs_in(var, a) for a in t.args])
+occurs_in(v::Var, t::Compound) = any([occurs_in(v, a) for a in t.args])
 
 "Performs variable substitution of var by val in a term."
 substitute(term::Term, var::Var, val::Term) = error("Not implemented.")

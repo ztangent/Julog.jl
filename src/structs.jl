@@ -62,11 +62,13 @@ function Base.show(io::IO, t::Compound)
         head, tail = t.args[1], t.args[2]
         if isa(tail, Var)
             print(io, "[", repr(head), " | ", repr(tail), "]")
-        elseif isa(tail, Const) && tail.name == :end
+        elseif isa(tail, Compound) && tail.name == :cend
             print(io, "[", repr(head), "]")
         else
             print(io, "[", repr(head), ", ", repr(tail)[2:end-1], "]")
         end
+    elseif t.name == :cend && length(t.args) == 0
+        print(io, "[]")
     else
         # Print compound term as "name(args...)"
         print(io, t.name, "(", join([repr(a) for a in t.args], ", ")..., ")")

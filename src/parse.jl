@@ -46,7 +46,7 @@ function parse_list(args)
     else
         # Recursively build list using :c (short for cons)
         elts = [parse_term(a) for a in args]
-        tail = :(Const(:end)) # Initialize tail to empty list
+        tail = :(Compound(:cend, [])) # Initialize tail to empty list
         for e in reverse(elts)
             tail = :(Compound(:c, [$e, $tail]))
         end
