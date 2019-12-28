@@ -53,7 +53,7 @@ julia> subst
 `FOL` uses syntax very similar to Prolog. In particular, users should
 note that argument-free terms with initial capitals are parsed as variables,
 whereas lowercase terms are parsed as constants:
-```julia-repl
+```julia
 julia> typeof(@fol(Person))
 Var
 julia> typeof(@fol(person))
