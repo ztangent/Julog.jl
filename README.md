@@ -1,6 +1,6 @@
 # FOL.jl
 
-A Julia package for first order logic (FOL) programming, based heavily on Prolog.
+A Julia package for Prolog-style first order logic (FOL) programming.
 
 ## Examples
 

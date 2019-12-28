@@ -176,7 +176,7 @@ function handle_builtins!(queue, clauses, goal, term; options...)
         # Try to resolve negated predicate, return true upon failure
         neg_goal = term.args[1]
         sat, _ = resolve(Term[neg_goal], clauses; options...,
-                         env=copy(goal.env), mode="any")
+                         env=copy(goal.env), mode=:any)
         return !sat # Success if no proof is found
     elseif term.name == :cut
         # Remove all other goals and succeed
@@ -201,9 +201,9 @@ SLD-resolution of goals with additional Prolog-like control flow.
 - `goals::Vector{<:Term}`: A list of FOL terms to be prove or query.
 - `clauses::Vector{Clause}`: A list of FOL clauses.
 - `env::Subst=Subst([])`: An initial environment mapping variables to terms.
-- `mode::String="all"`: How results should be returned.
-  "all" returns all possible substitiutions. "any" returns the first
-  satisfying substitution found. "interactive" prompts for continuation
+- `mode::Symbol=:all`: How results should be returned.
+  `:all` returns all possible substitiutions. `:any` returns the first
+  satisfying substitution found. `:interactive` prompts for continuation
   after each satisfying substitution is found.
 - `occurs_check::Bool=false`: Flag for occurs check during unification
 - `funcs::Dict=Dict()`: Custom functions for evaluating terms.
@@ -223,7 +223,7 @@ function resolve(goals::Vector{<:Term}, clauses::Dict{Symbol,Vector{Clause}};
     # Unpack options
     env = Subst(get(options, :env, []))
     occurs_check = get(options, :occurs_check, false)
-    mode = get(options, :mode, "all")
+    mode = get(options, :mode, :all)
     # Construct top level goal and put it on the queue
     queue = [GoalTree(Const(false), nothing, Vector{Term}(goals), 1, env)]
     subst = []
@@ -240,9 +240,9 @@ function resolve(goals::Vector{<:Term}, clauses::Dict{Symbol,Vector{Clause}};
                 if !(goal.env in subst)
                     push!(subst, goal.env)
                 end
-                if (mode == "all") continue
-                elseif (mode == "any" || length(queue) == 0) break
-                elseif mode == "interactive"
+                if (mode == :all) continue
+                elseif (mode == :any || length(queue) == 0) break
+                elseif mode == :interactive
                     # Interactively prompt for continuation
                     println(goal.env)
                     print("Continue? [y/n]: ")
