@@ -46,6 +46,31 @@ clauses = @fol [red(roses) <<= true, blue(violets) <<= true]
 @test resolve(@fol(not(not(red(roses)))), clauses)[1] == true
 @test resolve(@fol(not(not(blue(violets)))), clauses)[1] == true
 
+# Test exists/2 and forall/2
+clauses = @fol [
+    human(pythagoras) <<= true,
+    human(pyrrho) <<= true,
+    human(zeno) <<= true,
+    human(epicurus) <<= true,
+    human(aristotle) <<= true,
+    human(plato) <<= true,
+    god(hera) <<= true,
+    god(zeus) <<= true,
+    god(aphrodite) <<= true,
+    god(ares) <<= true,
+    person(X) <<= human(X),
+    person(X) <<= god(X),
+    mortal(X) <<= human(X),
+    immortal(X) <<= god(X)
+]
+
+@test resolve(@fol(exists(human(X), mortal(X))), clauses)[1] == true
+@test resolve(@fol(exists(god(X), immortal(X))), clauses)[1] == true
+@test resolve(@fol(exists(person(X), mortal(X))), clauses)[1] == true
+@test resolve(@fol(forall(person(X), mortal(X))), clauses)[1] == false
+@test resolve(@fol(forall(human(X), mortal(X))), clauses)[1] == true
+@test resolve(@fol(forall(god(X), immortal(X))), clauses)[1] == true
+
 # Test cut and fail by preventing infinite loops
 clauses = @fol [
     fakeloop1(A) <<= fakeloop1(B),

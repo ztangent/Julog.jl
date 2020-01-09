@@ -20,7 +20,7 @@ ops = vcat(math_ops, comp_ops)
 default_funcs = Dict(op => (args...) -> eval(op)(args...) for op in ops)
 "Built-in predicates with special handling during SLD resolution."
 builtins = [[true, false, :and, :or,
-            :unifies, :is, :not, :!,
+            :unifies, :is, :not, :!, :exists, :forall,
             :cut, :fail]; comp_ops]
 
 "
@@ -178,6 +178,19 @@ function handle_builtins!(queue, clauses, goal, term; options...)
         sat, _ = resolve(Term[neg_goal], clauses; options...,
                          env=copy(goal.env), mode=:any)
         return !sat # Success if no proof is found
+    elseif term.name == :exists
+        # exists(Cond, Act) holds if Act holds for at least 1 binding of Cond
+        cond, act = term.args[1], term.args[2]
+        sat, _ = resolve(Term[cond, act], clauses; options...,
+                         env=copy(goal.env), mode=:any)
+         return sat
+     elseif term.name == :forall
+         # forall(Cond, Act) holds if Act holds for all bindings of Cond
+         cond, act = term.args[1], term.args[2]
+         term = @fol(not(and(:cond, not(:act)))) # Rewrite term
+         goal.children[goal.active] = term # Replace term
+         goal.active -= 1
+         return true
     elseif term.name == :cut
         # Remove all other goals and succeed
         empty!(queue)
