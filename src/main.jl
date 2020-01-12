@@ -27,6 +27,7 @@ builtins = [[true, false, :and, :or,
     eval_term(term, env[, funcs])
 
 Given an environment, evaluate all variables in a FOL term to constants.
+Returns a term that is as fully evaluated as possible.
 
 # Arguments
 - `term::Term`: A term to evaluate.
@@ -36,14 +37,12 @@ Given an environment, evaluate all variables in a FOL term to constants.
 eval_term(term::Term, env::Subst, funcs::Dict=Dict()) = error("Not implemented")
 eval_term(term::Const, env::Subst, funcs::Dict=Dict()) = term
 eval_term(term::Var, env::Subst, funcs::Dict=Dict()) =
-    term in keys(env) ? eval_term(env[term], env, funcs) : nothing
+    term in keys(env) ? eval_term(env[term], env, funcs) : term
 function eval_term(term::Compound, env::Subst, funcs::Dict=Dict())
-    args = [eval_term(a, env, funcs) for a in term.args]
+    args = Term[eval_term(a, env, funcs) for a in term.args]
     funcs = merge(default_funcs, funcs)
-    if any([a == nothing for a in args])
-        return nothing
-    elseif term.name in keys(funcs)
-        # Evaluate custom-defined functions
+    if term.name in keys(funcs) && all([isa(a, Const) for a in args])
+        # Evaluate function if all arguments are fully evulated
         r = Const(funcs[term.name]([a.name for a in args]...))
         return r
     else
@@ -132,7 +131,7 @@ function handle_builtins!(queue, clauses, goal, term; options...)
         # Handle is/2 predicate
         qn, ans = term.args[1], eval_term(term.args[2], goal.env, funcs)
         # Failure if RHS is insufficiently instantiated
-        if ans == nothing return false end
+        if !isa(ans, Const) return false end
         # LHS can either be a variable or evaluate to a constant
         if isa(qn, Var) && !(qn in keys(goal.env))
             # If LHS is a free variable, bind to RHS
@@ -144,7 +143,7 @@ function handle_builtins!(queue, clauses, goal, term; options...)
         else
             # If LHS evaluates to a constant, check if it is equal to RHS
             qn = eval_term(qn, goal.env, funcs)
-            return qn == nothing ? false : qn == ans
+            return isa(qn, Const) ? qn == ans : false
         end
         return false
     elseif term.name == :unifies
@@ -200,7 +199,7 @@ function handle_builtins!(queue, clauses, goal, term; options...)
         return false
     elseif term.name in comp_ops
         result = eval_term(term, goal.env, funcs)
-        return (result != nothing && result.name == true)
+        return (isa(result, Const) && result.name == true)
     end
     return false
 end
