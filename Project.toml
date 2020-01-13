@@ -1,7 +1,7 @@
 name = "FOL"
 uuid = "5d8bcb5e-2b2c-4a96-a2b1-d40b3d3c344f"
 authors = ["Xuan <tanqazx@gmail.com>"]
-version = "0.1.0"
+version = "0.1.1"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

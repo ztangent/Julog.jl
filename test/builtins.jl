@@ -46,7 +46,7 @@ clauses = @fol [red(roses) <<= true, blue(violets) <<= true]
 @test resolve(@fol(not(not(red(roses)))), clauses)[1] == true
 @test resolve(@fol(not(not(blue(violets)))), clauses)[1] == true
 
-# Test exists/2 and forall/2
+# Test exists/2, forall/2, implies/2
 clauses = @fol [
     human(pythagoras) <<= true,
     human(pyrrho) <<= true,
@@ -64,12 +64,34 @@ clauses = @fol [
     immortal(X) <<= god(X)
 ]
 
+# Is there a human who is mortal? (Yes.)
 @test resolve(@fol(exists(human(X), mortal(X))), clauses)[1] == true
+# Is there a god who is immortal? (Yes.)
 @test resolve(@fol(exists(god(X), immortal(X))), clauses)[1] == true
+# Is there a person who is mortal? (Yes.)
 @test resolve(@fol(exists(person(X), mortal(X))), clauses)[1] == true
+
+# Are all persons mortal? (No.)
 @test resolve(@fol(forall(person(X), mortal(X))), clauses)[1] == false
+# Are all humans mortal? (Yes.)
 @test resolve(@fol(forall(human(X), mortal(X))), clauses)[1] == true
+# Are all gods immortal? (Yes.)
 @test resolve(@fol(forall(god(X), immortal(X))), clauses)[1] == true
+
+# Is it true that if Hera is mortal, she's human? (Yes, since she's not mortal.)
+@test resolve(@fol(imply(mortal(hera), human(hera))), clauses)[1] == true
+# Is it true that if Hera is immortal, she's human? (No.)
+@test resolve(@fol(imply(immortal(hera), human(hera))), clauses)[1] == false
+# Is it true that for all people, being a god implies immortality? (Yes.)
+@test resolve(@fol(forall(person(X), god(X) => immortal(X))), clauses)[1] == true
+# Is it true that for all people, being a person implies immortality? (No.)
+@test resolve(@fol(forall(person(X), person(X) => mortal(X))), clauses)[1] == false
+
+# Of those who are persons, which are immortal?
+sat, subst = resolve(@fol(person(X) => immortal(X)), clauses)
+ans = Set([@folsub({X => hera}), @folsub({X => zeus}),
+           @folsub({X => aphrodite}), @folsub({X => ares})])
+@test ans == Set(subst)
 
 # Test cut and fail by preventing infinite loops
 clauses = @fol [

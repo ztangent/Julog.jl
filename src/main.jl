@@ -20,7 +20,8 @@ ops = vcat(math_ops, comp_ops)
 default_funcs = Dict(op => (args...) -> eval(op)(args...) for op in ops)
 "Built-in predicates with special handling during SLD resolution."
 builtins = [[true, false, :and, :or,
-            :unifies, :is, :not, :!, :exists, :forall,
+            :unifies, :is, :not, :!,
+            :exists, :forall, :imply, :(=>),
             :cut, :fail]; comp_ops]
 
 "
@@ -158,8 +159,7 @@ function handle_builtins!(queue, clauses, goal, term; options...)
         return true
     elseif term.name == :and
         # Remove self and add all arguments as children to the goal, succeed
-        deleteat!(goal.children, goal.active)
-        goal.children = [goal.children; term.args]
+        splice!(goal.children, goal.active, term.args)
         goal.active -= 1
         return true
     elseif term.name == :or
@@ -178,18 +178,29 @@ function handle_builtins!(queue, clauses, goal, term; options...)
                          env=copy(goal.env), mode=:any)
         return !sat # Success if no proof is found
     elseif term.name == :exists
-        # exists(Cond, Act) holds if Act holds for at least 1 binding of Cond
-        cond, act = term.args[1], term.args[2]
-        sat, _ = resolve(Term[cond, act], clauses; options...,
+        # exists(Cond, Body) holds if Body holds for at least 1 binding of Cond
+        cond, body = term.args[1], term.args[2]
+        sat, _ = resolve(Term[cond, body], clauses; options...,
                          env=copy(goal.env), mode=:any)
          return sat
      elseif term.name == :forall
-         # forall(Cond, Act) holds if Act holds for all bindings of Cond
-         cond, act = term.args[1], term.args[2]
-         term = @fol(not(and(:cond, not(:act)))) # Rewrite term
+         # forall(Cond, Body) holds if Body holds for all bindings of Cond
+         cond, body = term.args[1], term.args[2]
+         term = @fol(not(and(:cond, not(:body)))) # Rewrite term
          goal.children[goal.active] = term # Replace term
          goal.active -= 1
          return true
+    elseif term.name in [:imply, :(=>)]
+        # imply(Cond, Body) holds if or(not(Cond), Body) holds
+        cond, body = term.args[1], term.args[2]
+        sat, _ = resolve(Term[cond], clauses; options...,
+                         env=copy(goal.env), mode=:any)
+        # Return true if Cond does not hold
+        if !sat return true end
+        # Otherwise replace original term with [Cond, Body], return true
+        splice!(goal.children, goal.active, [cond, body])
+        goal.active -= 1
+        return true
     elseif term.name == :cut
         # Remove all other goals and succeed
         empty!(queue)
