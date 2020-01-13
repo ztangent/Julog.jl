@@ -4,6 +4,19 @@ freshen(t::Const) = t
 freshen(t::Var) = Var(gensym(t.name))
 freshen(t::Compound) = Compound(t.name, Term[freshen(a) for a in t.args])
 
+"Replace selected variables in a term with fresh names."
+freshen(t::Term, vars::Set{Var}) = error("Not implemented.")
+freshen(t::Const, vars::Set{Var}) = t
+freshen(t::Var, vars::Set{Var}) = v in vars ? Var(gensym(t.name)) : t
+freshen(t::Compound, vars::Set{Var}) =
+    Compound(t.name, Term[freshen(a, vars) for a in t.args])
+
+"Return all vars in a term."
+get_vars(t::Term) = error("Not implemented.")
+get_vars(t::Const) = Set{Var}()
+get_vars(t::Var) = Set{Var}([t])
+get_vars(t::Compound) = union([get_vars(a) for a in t.args]...)
+
 "Check if a term is ground (contains no variables)."
 is_ground(t::Term) = error("Not implemented.")
 is_ground(t::Const) = true

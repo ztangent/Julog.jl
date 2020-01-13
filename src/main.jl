@@ -180,16 +180,18 @@ function handle_builtins!(queue, clauses, goal, term; options...)
     elseif term.name == :exists
         # exists(Cond, Body) holds if Body holds for at least 1 binding of Cond
         cond, body = term.args[1], term.args[2]
-        sat, _ = resolve(Term[cond, body], clauses; options...,
-                         env=copy(goal.env), mode=:any)
-         return sat
-     elseif term.name == :forall
-         # forall(Cond, Body) holds if Body holds for all bindings of Cond
-         cond, body = term.args[1], term.args[2]
-         term = @fol(not(and(:cond, not(:body)))) # Rewrite term
-         goal.children[goal.active] = term # Replace term
-         goal.active -= 1
-         return true
+        sat, subst = resolve(Term[cond, body], clauses; options...,
+                             env=copy(goal.env), mode=:any)
+        # Update bindings if satisfied
+        goal.env = sat ? compose(goal.env, subst[1]) : goal.env
+        return sat
+    elseif term.name == :forall
+        # forall(Cond, Body) holds if Body holds for all bindings of Cond
+        cond, body = term.args[1], term.args[2]
+        term = @fol(not(and(:cond, not(:body)))) # Rewrite term
+        goal.children[goal.active] = term # Replace term
+        goal.active -= 1
+        return true
     elseif term.name in [:imply, :(=>)]
         # imply(Cond, Body) holds if or(not(Cond), Body) holds
         cond, body = term.args[1], term.args[2]
@@ -303,13 +305,13 @@ function resolve(goals::Vector{<:Term}, clauses::Dict{Symbol,Vector{Clause}};
             continue
         end
         # Substitute variables in term
-        subst_term = freshen(substitute(term, goal.env))
+        term = freshen(substitute(term, goal.env))
         # Iterate across clause set with matching head functor
-        matched_clauses = get(clauses, subst_term.name, Clause[])
+        matched_clauses = get(clauses, term.name, Clause[])
         matched = false
         for c in matched_clauses
             # If term unifies with head of a clause, add it as a subgoal
-            child_env = unify(subst_term, c.head, occurs_check)
+            child_env = unify(term, c.head, occurs_check)
             if child_env != nothing
                 child = GoalTree(c.head, goal, copy(c.body), 1, child_env)
                 push!(queue, child)
