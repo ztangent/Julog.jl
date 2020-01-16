@@ -1,5 +1,6 @@
 # Test evaluation of custom functions
 funcs = Dict()
+funcs[:pi] = pi
 funcs[:sin] = sin
 funcs[:cos] = cos
 funcs[:square] = x -> x * x
@@ -7,11 +8,14 @@ funcs[:dup] = x -> (x, x)
 funcs[:pair] = (x, y) -> (x, y)
 funcs[:fst] = tup -> tup[1]
 funcs[:snd] = tup -> tup[2]
+funcs[:fakesum] = Dict((1, 1) => 2, (2, 2) => 4)
 
-@test resolve(@fol(sin($pi / 2) == 1), Clause[], funcs=funcs)[1] == true
-@test resolve(@fol(cos($pi) == -1), Clause[], funcs=funcs)[1] == true
+@test resolve(@fol(sin(pi / 2) == 1), Clause[], funcs=funcs)[1] == true
+@test resolve(@fol(cos(pi) == -1), Clause[], funcs=funcs)[1] == true
 @test resolve(@fol(square(5) == 25), Clause[], funcs=funcs)[1] == true
 @test resolve(@fol(dup(6) == pair(6, 6)), Clause[], funcs=funcs)[1] == true
+@test resolve(@fol(fakesum(1, 1) == 2), Clause[], funcs=funcs)[1] == true
+@test resolve(@fol(fakesum(2, 2) == 4), Clause[], funcs=funcs)[1] == true
 
 clauses = @fol [
     on_circ(Rad, Pt) <<= square(fst(Pt)) + square(snd(Pt)) == square(Rad),

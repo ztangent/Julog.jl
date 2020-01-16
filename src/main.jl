@@ -36,16 +36,26 @@ Returns a term that is as fully evaluated as possible.
 - `funcs::Dict=Dict()`: Additional custom functions (e.g. custom math).
 "
 eval_term(term::Term, env::Subst, funcs::Dict=Dict()) = error("Not implemented")
-eval_term(term::Const, env::Subst, funcs::Dict=Dict()) = term
+eval_term(term::Const, env::Subst, funcs::Dict=Dict()) =
+    term.name in keys(funcs) ? Const(funcs[term.name]) : term
 eval_term(term::Var, env::Subst, funcs::Dict=Dict()) =
     term in keys(env) ? eval_term(env[term], env, funcs) : term
 function eval_term(term::Compound, env::Subst, funcs::Dict=Dict())
     args = Term[eval_term(a, env, funcs) for a in term.args]
     funcs = merge(default_funcs, funcs)
     if term.name in keys(funcs) && all([isa(a, Const) for a in args])
-        # Evaluate function if all arguments are fully evulated
-        r = Const(funcs[term.name]([a.name for a in args]...))
-        return r
+        func = funcs[term.name]
+        if isa(func, Function)
+            # Evaluate function if all arguments are fully evulated
+            return Const(func([a.name for a in args]...))
+        elseif isa(func, Dict)
+            # Lookup value if custom function is a lookup table
+            key = Tuple(a.name for a in args)
+            @assert (key in keys(func)) "$(term.name)$key is undefined."
+            return Const(func[key])
+        else
+            error("$(term.name) is neither a custom function or lookup table.")
+        end
     else
         return Compound(term.name, args)
     end
