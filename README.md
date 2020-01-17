@@ -2,6 +2,13 @@
 
 A Julia package for Prolog-style first order logic (FOL) programming.
 
+## Features
+
+- [Prolog-like syntax](#syntax)
+- [Interpolation of expressions](#interpolation)
+- [Custom function support](#custom-functions)
+- [Built-in predicates and logical connectives](#built-in-predicates)
+
 ## Examples
 
 [Terms](http://www.dai.ed.ac.uk/groups/ssp/bookpages/quickprolog/node5.html) and [Horn clauses](https://en.wikipedia.org/wiki/Horn_clause) can be expressed in Prolog-like syntax using the
@@ -48,7 +55,9 @@ julia> subst
   {Y => huineng, X => daoxin}
 ```
 
-## Comparison with Prolog syntax
+More examples can be found in the [`test`](test) folder.
+
+## Syntax
 
 `FOL` uses syntax very similar to Prolog. In particular, users should
 note that argument-free terms with initial capitals are parsed as variables,
@@ -69,9 +78,89 @@ However, several important operators differ from Prolog, as shown by the example
 | `!mortal(gaia)`                          | `\+mortal(gaia)`                       | Gaia is not mortal.                 |
 | `mortal(X) <<= can_live(X) & can_die(X)` | `mortal(X) :- can_live(X), can_die(X)` | X is mortal if it can live and die. |
 
-In words, `<<=` replaces the Prolog turnstile `:-`, `<<= true` replaces `.` when stating facts, `!` replaces `\+` for negation, there is no longer a special
-operator for `cut`, `&` replaces `,` in the bodies of
-definite clauses, and there is no `or` operator like the `;` in Prolog.
+In words, `<<=` replaces the Prolog turnstile `:-`, `<<= true` replaces `.` when stating facts, `!` replaces `\+` for negation, there is no longer a special operator for `cut`, `&` replaces `,` in the bodies of definite clauses, and there is no `or` operator like the `;` in Prolog.
+
+## Interpolation
+
+Similar to [string interpolation](https://docs.julialang.org/en/latest/manual/strings/#string-interpolation-1) and [expression interpolation](https://docs.julialang.org/en/v1/manual/metaprogramming/#Expressions-and-evaluation-1) in Julia, you can interpolate Julia expressions when constructing `FOL` terms using the `@fol` macro. `FOL` supports two forms of interpolation. The first form is constant interpolation using the `$` operator, where ordinary Julia expressions are converted to `Const`s:
+
+```julia
+julia> e = exp(1)
+2.718281828459045
+julia> term = @fol irrational($e)
+irrational(2.718281828459045)
+julia> dump(term)
+Compound
+  name: Symbol irrational
+  args: Array{Term}((1,))
+    1: Const
+      name: Float64 2.718281828459045
+```
+
+The second form is term interpolation using the `:` operator, where pre-constructed `FOL` terms are interpolated into a surrounding `FOL` expression:
+
+```julia
+julia> e = Const(exp(1))
+2.718281828459045
+julia> term = @fol irrational(:e)
+irrational(2.718281828459045)
+julia> dump(term)
+Compound
+  name: Symbol irrational
+  args: Array{Term}((1,))
+    1: Const
+      name: Float64 2.718281828459045
+```
+
+Interpolation allows us to easily generate FOL knowledge bases programatically using Julia code:
+
+```julia
+julia> people = @fol [avery, bailey, casey, darcy];
+julia> heights = [@fol(height(:p, cm($(rand(140:200))))) for p in people]
+4-element Array{Compound,1}:
+ height(avery, cm(155))
+ height(bailey, cm(198))
+ height(casey, cm(161))
+ height(darcy, cm(175))
+```
+
+## Custom Functions
+
+In addition to standard arithmetic functions, `FOL` supports the evaluation of custom functions during proof search, allowing users to leverage the full power of precompiled Julia code. This can be done by providing a dictionary of functions when calling `resolve`. This dictionary can also accept constants (allowing one to store, e.g., numeric-valued fluents), and lookup-tables. An example is shown below:
+
+```julia
+funcs = Dict()
+funcs[:pi] = pi
+funcs[:sin] = sin
+funcs[:cos] = cos
+funcs[:square] = x -> x * x
+funcs[:lookup] = Dict((:foo,) => "hello", (:bar,) => "world")
+
+@assert resolve(@fol(sin(pi / 2) == 1), Clause[], funcs=funcs)[1] == true
+@assert resolve(@fol(cos(pi) == -1), Clause[], funcs=funcs)[1] == true
+@assert resolve(@fol(lookup(foo) == "hello"), Clause[], funcs=funcs)[1] == true
+@assert resolve(@fol(lookup(bar) == "world"), Clause[], funcs=funcs)[1] == true
+```
+
+See [`test/custom_funcs.jl`](test/custom_funcs.jl) for more examples.
+
+## Built-in Predicates
+
+`FOL` provides a number of built-in predicates for control-flow and convenience. Some of these are also part of ISO Prolog, but may not share the exact same behavior.
+
+- `c` and `cend` are reserved for lists. `[x, y, z]` is equivalent to `c(x, c(y, c(z, cend()))`.
+- `true` and `false` operate as one might expect.
+- `and(A, B, C, ...)` is equivalent to `A & B & C & ...` in the body of an FOL clause.
+- `or(A, B, C, ...)` is equivalent to `A ; B ; C ; ...` in Prolog-syntax.
+- `not(X)` / `!X` is true if X cannot be proven (i.e. negation as failure).
+- `unifies(X, Y)` is true if `X` unifies with `Y`.
+- `exists(Cond, Act)` is true if `Act` is true for at least one binding of `Cond`.
+- `forall(Cond, Act)` is true if `Act` is true for all possible bindings of `Cond` (beware infinite loops).
+- `imply(Cond, Act)` / `Cond => Act` is true if either `Cond` is false, or both `Cond` and `Act` are true.
+- `fail` causes the current goal to fail (equivalent to `false`).
+- `cut` causes the current goal to succeed and suppresses all other goals. However, this does not have the same effects as in Prolog because `FOL` uses breadth-first search during SLD-resolution, unlike most Prolog implementations, which use depth-first search.
+
+See [`test/builtins.jl`](test/builtins.jl) for usage examples.
 
 ## Acknowledgements
 
