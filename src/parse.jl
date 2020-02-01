@@ -80,8 +80,8 @@ function parse_fol(expr)
         body = parse_body(expr.args[2])
         return :(Clause($head, [$(body...)]))
     elseif isa(expr, Expr) && expr.head == :vect
-        exps = [parse_fol(a) for a in expr.args]
-        return :([$(exps...)])
+        exprs = [parse_fol(a) for a in expr.args]
+        return :([$(exprs...)])
     else
         return parse_term(expr)
     end
@@ -100,4 +100,57 @@ macro folsub(expr)
     vars = [Var(a.args[2]) for a in expr.args]
     terms = [eval(parse_term(a.args[3])) for a in expr.args]
     return Subst(v => t for (v,t) in zip(vars, terms))
+end
+
+"Convert Prolog string to list of FOL strings."
+function prolog_to_fol(str::String)
+    clauses = String[]
+    # Match each clause (being careful to handle periods in lists + floats)
+    for m in eachmatch(r"((?:\d\.\d+|[^\.]|\.\()*)\.\s*", str)
+        clause = m.captures[1]
+        # Replace cuts, negations and implications
+        clause = replace(clause, "!" => "cut")
+        clause = replace(clause, "\\+" => "!")
+        clause = replace(clause, "->" => "=>")
+        clause = replace(clause, ".(" => "c(")
+        # Try to match to definite clause
+        m = match(r"(.*):-(.*)", clause)
+        if m == nothing
+            # Push fact on to list of clauses
+            clause = clause * " <<= true"
+            push!(clauses, clause)
+            continue
+        end
+        # Handle definite clauses
+        head, body = m.captures[1:2]
+        # Handle disjunctions within the body
+        for bd in split(body, ";")
+            # Handle conjuctions within body (find commas outside of brackets)
+            br_count = 0
+            commas = [0]
+            for (idx, chr) in enumerate(bd)
+                if (chr == '(') br_count += 1
+                elseif (chr == ')') br_count -= 1
+                elseif (chr == ',') && br_count == 0 push!(commas, idx) end
+            end
+            push!(commas, length(bd)+1)
+            terms = [strip(bd[a+1:b-1]) for (a, b) in
+                     zip(commas[1:end-1], commas[2:end])]
+            subclause = strip(head) * " <<= " * join(terms, " & ")
+            push!(clauses, subclause)
+        end
+    end
+    return clauses
+end
+
+"Parse FOL expression from string using standard Prolog syntax."
+function parse_prolog(str::String)
+    strs = prolog_to_fol(str)
+    exprs = [parse_fol(Meta.parse(s)) for s in strs]
+    return :([$(exprs...)])
+end
+
+"Macro that parses Prolog programs as strings and returns FOL clauses."
+macro prolog(str::String)
+    return parse_prolog(str)
 end
