@@ -80,6 +80,8 @@ However, several important operators differ from Prolog, as shown by the example
 
 In words, `<<=` replaces the Prolog turnstile `:-`, `<<= true` replaces `.` when stating facts, `!` replaces `\+` for negation, there is no longer a special operator for `cut`, `&` replaces `,` in the bodies of definite clauses, and there is no `or` operator like the `;` in Prolog.
 
+If Prolog syntax is preferred, the `@prolog` macro and `parse_prolog` functions can be used to convert Prolog strings directly to FOL constructs, while `write_prolog` converts a list of FOL clauses to a Prolog string. However, this conversion cannot presently handle all of Prolog syntax (e.g., nested infix operators or comparison operators such as `=:=`), and should be used with caution.
+
 ## Interpolation
 
 Similar to [string interpolation](https://docs.julialang.org/en/latest/manual/strings/#string-interpolation-1) and [expression interpolation](https://docs.julialang.org/en/v1/manual/metaprogramming/#Expressions-and-evaluation-1) in Julia, you can interpolate Julia expressions when constructing `FOL` terms using the `@fol` macro. `FOL` supports two forms of interpolation. The first form is constant interpolation using the `$` operator, where ordinary Julia expressions are converted to `Const`s:

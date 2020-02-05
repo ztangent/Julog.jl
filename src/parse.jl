@@ -146,11 +146,27 @@ end
 "Parse FOL expression from string using standard Prolog syntax."
 function parse_prolog(str::String)
     strs = prolog_to_fol(str)
-    exprs = [parse_fol(Meta.parse(s)) for s in strs]
-    return :([$(exprs...)])
+    exprs = [@fol($(Meta.parse(s))) for s in strs]
+    return exprs
+end
+
+"Write list of FOL clauses to Prolog string."
+function write_prolog(clauses::Vector{Clause})
+    str = ""
+    for clause in clauses
+        clause = repr(clause)
+        clause = replace(clause, "!" => "\\+")
+        clause = replace(clause, "=>" => "->")
+        clause = replace(clause, " &" => ",")
+        clause = replace(clause, "<<=" => ":-")
+        str = str * clause * ".\n"
+    end
+    return str
 end
 
 "Macro that parses Prolog programs as strings and returns FOL clauses."
 macro prolog(str::String)
-    return parse_prolog(str)
+    strs = prolog_to_fol(str)
+    exprs = [parse_fol(Meta.parse(s)) for s in strs]
+    return :([$(exprs...)])
 end

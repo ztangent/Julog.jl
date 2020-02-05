@@ -339,3 +339,7 @@ end
 "Resolve a single term with respect to a set of clauses."
 resolve(goal::Term, clauses::Vector{Clause}; options...) =
     resolve(Term[goal], clauses; options...)
+
+"Resolve a set of clauses as goals by converting them to terms."
+resolve(goals::Vector{Clause}, clauses::Vector{Clause}; options...) =
+    resolve([convert(Term, g) for g in goals], clauses; options...)

@@ -51,6 +51,12 @@ Base.hash(c::Clause, h::UInt) = hash(c.head, hash(Tuple(c.body), h))
 "Convert FOL term to Horn clause."
 Base.convert(::Type{Clause}, term::Term) = Clause(term, [])
 
+"Convert Horn clause to FOL term."
+function Base.convert(::Type{Term}, clause::Clause)
+    if length(clause.body) == 0 return clause.head end
+    return Compound(:(=>), Term[Compound(:and, copy(clause.body)), clause.head])
+end
+
 "Show FOL terms as they would be parsed."
 function Base.show(io::IO, t::Term)
     print(io, t.name)
