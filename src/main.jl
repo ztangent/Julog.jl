@@ -53,8 +53,9 @@ function eval_term(term::Compound, env::Subst, funcs::Dict=Dict())
         elseif isa(func, Dict)
             # Lookup value if custom function is a lookup table
             key = Tuple(a.name for a in args)
-            @assert (key in keys(func)) "$(term.name)$key is undefined."
-            return Const(func[key])
+            if key in keys(func) return Const(func[key]) end
+            # Leave un-evaluated if lookup table has missing entries
+            return Compound(term.name, args)
         else
             error("$(term.name) is neither a custom function or lookup table.")
         end
@@ -222,7 +223,7 @@ function handle_builtins!(queue, clauses, goal, term; options...)
     elseif term.name == :fail
         # Fail and skip goal
         return false
-    elseif term.name in comp_ops
+    elseif term.name in comp_ops || term.name in keys(funcs)
         result = eval_term(term, goal.env, funcs)
         return (isa(result, Const) && result.name == true)
     end
@@ -254,6 +255,7 @@ function resolve(goals::Vector{<:Term}, clauses::ClauseTable; options...)
     # Unpack options
     env = Subst(get(options, :env, []))
     occurs_check = get(options, :occurs_check, false)
+    funcs = get(options, :funcs, Dict())
     mode = get(options, :mode, :all)
     # Construct top level goal and put it on the queue
     queue = [GoalTree(Const(false), nothing, Vector{Term}(goals), 1, env)]
@@ -300,7 +302,7 @@ function resolve(goals::Vector{<:Term}, clauses::ClauseTable; options...)
         term = goal.children[goal.active]
         @debug string("Subgoal: ", term)
         # Handle built-in special terms
-        if term.name in builtins
+        if term.name in builtins || term.name in keys(funcs)
             success = handle_builtins!(queue, clauses, goal, term; options...)
             # If successful, go to next subgoal, otherwise skip to next goal
             if success
@@ -310,7 +312,7 @@ function resolve(goals::Vector{<:Term}, clauses::ClauseTable; options...)
             end
             continue
         end
-        # Substitute variables in term
+        # Substitute and freshen variables in term
         term = freshen(substitute(term, goal.env))
         # Iterate across clause set with matching heads
         matched_clauses = retrieve_clauses(clauses, term)
