@@ -27,7 +27,7 @@ subst = Set(subst)
 
 # Test clause table manipulation
 table = index_clauses(clauses[1:4])
-table = index_clauses(clauses[4:end], table)
+table = insert_clauses!(table, clauses[4:end])
 @test table == index_clauses(clauses)
-subtract_clauses!(table, index_clauses(clauses[5:end]))
+subtract_clauses!(table, clauses[5:end])
 @test Set(deindex_clauses(table)) == Set(clauses[1:4])

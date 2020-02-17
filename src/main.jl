@@ -313,7 +313,7 @@ function resolve(goals::Vector{<:Term}, clauses::ClauseTable; options...)
         # Substitute variables in term
         term = freshen(substitute(term, goal.env))
         # Iterate across clause set with matching heads
-        matched_clauses = retrieve_clauses(term, clauses)
+        matched_clauses = retrieve_clauses(clauses, term)
         matched = false
         for c in matched_clauses
             # If term unifies with head of a clause, add it as a subgoal

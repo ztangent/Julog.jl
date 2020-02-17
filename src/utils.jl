@@ -53,8 +53,8 @@ end
 "Nested dictionary to store indexed clauses."
 ClauseTable = Dict{Symbol,Dict{Symbol,Vector{Clause}}}
 
-"Index clauses by functor name and first argument for efficient look-up."
-function index_clauses(clauses::Vector{Clause}, table::ClauseTable=ClauseTable())
+"Insert clauses into indexed table for efficient look-up."
+function insert_clauses!(table::ClauseTable, clauses::Vector{Clause})
     # Ensure no duplicates are added
     clauses = unique(clauses)
     if (length(table) > 0) setdiff!(clauses, deindex_clauses(table)) end
@@ -76,6 +76,16 @@ function index_clauses(clauses::Vector{Clause}, table::ClauseTable=ClauseTable()
     return table
 end
 
+"Insert clauses into indexed table and return a new table."
+function insert_clauses(table::ClauseTable, clauses::Vector{Clause})
+    return insert_clauses!(deepcopy(table), clauses)
+end
+
+"Index clauses by functor name and first argument for efficient look-up."
+function index_clauses(clauses::Vector{Clause})
+    return insert_clauses!(ClauseTable(), clauses)
+end
+
 "Convert indexed clause table to flat list of clauses."
 function deindex_clauses(table::ClauseTable)
     clauses = Clause[]
@@ -90,7 +100,7 @@ function deindex_clauses(table::ClauseTable)
 end
 
 "Retrieve matching clauses from indexed clause table."
-function retrieve_clauses(term::Term, table::ClauseTable)
+function retrieve_clauses(table::ClauseTable, term::Term)
     clauses = Clause[]
     if term.name in keys(table)
         subtable = table[term.name]
@@ -109,7 +119,7 @@ function retrieve_clauses(term::Term, table::ClauseTable)
     return clauses
 end
 
-"Subtract the second clause table from the first clause table (in-place)."
+"Subtract one clause table from another (in-place)."
 function subtract_clauses!(table1::ClauseTable, table2::ClauseTable)
     for (functor, subtable2) in table2
         if !(functor in keys(table1)) continue end
@@ -122,7 +132,17 @@ function subtract_clauses!(table1::ClauseTable, table2::ClauseTable)
     return table1
 end
 
-"Subtract the second clause table from the first clause table."
+"Subtract one clause table from another (returns new copy)."
 function subtract_clauses(table1::ClauseTable, table2::ClauseTable)
     return subtract_clauses!(deepcopy(table1), table2)
+end
+
+"Subtract clauses from a indexed clause table (in-place)."
+function subtract_clauses!(table::ClauseTable, clauses::Vector{Clause})
+    return subtract_clauses!(table, index_clauses(clauses))
+end
+
+"Subtract clauses from a indexed clause table (returns new copy)."
+function subtract_clauses(table::ClauseTable, clauses::Vector{Clause})
+    return subtract_clauses(table, index_clauses(clauses))
 end
