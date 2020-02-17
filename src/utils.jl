@@ -55,6 +55,10 @@ ClauseTable = Dict{Symbol,Dict{Symbol,Vector{Clause}}}
 
 "Index clauses by functor name and first argument for efficient look-up."
 function index_clauses(clauses::Vector{Clause}, table::ClauseTable=ClauseTable())
+    # Ensure no duplicates are added
+    clauses = unique(clauses)
+    if (length(table) > 0) setdiff!(clauses, deindex_clauses(table)) end
+    # Iterate over clauses and insert into table
     for c in clauses
         subtable = get!(table, c.head.name, Dict{Symbol,Vector{Clause}}())
         if isa(c.head, Compound) && length(c.head.args) >= 1
