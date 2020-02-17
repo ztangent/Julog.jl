@@ -229,6 +229,49 @@ function handle_builtins!(queue, clauses, goal, term; options...)
     return false
 end
 
+"Nested dictionary to store indexed clauses."
+ClauseTable = Dict{Symbol,Dict{Symbol,Vector{Clause}}}
+
+"Index clauses by functor name and first argument for efficient look-up."
+function index_clauses(clauses::Vector{Clause})
+    table = ClauseTable()
+    for c in clauses
+        subtable = get!(table, c.head.name, Dict{Symbol,Vector{Clause}}())
+        if isa(c.head, Compound) && length(c.head.args) >= 1
+            arg = c.head.args[1]
+            if isa(arg, Var)
+                push!(get!(subtable, :__var__, Clause[]), c)
+            else
+                push!(get!(subtable, Symbol(arg.name), Clause[]), c)
+            end
+            push!(get!(subtable, :__all__, Clause[]), c)
+        else
+            push!(get!(subtable, :__no_args__, Clause[]), c)
+        end
+    end
+    return table
+end
+
+"Retrieve matching clauses from indexed clause table."
+function retrieve_clauses(term::Term, table::ClauseTable)
+    clauses = Clause[]
+    if term.name in keys(table)
+        subtable = table[term.name]
+        if isa(term, Compound) && length(term.args) >= 1
+            arg = term.args[1]
+            if isa(arg, Var)
+                clauses = get(subtable, :__all__, Clause[])
+            else
+                clauses = [get(subtable, Symbol(arg.name), Clause[]);
+                           get(subtable, :__var__, Clause[])]
+            end
+        else
+            clauses = get(subtable, :__no_args__, Clause[])
+        end
+    end
+    return clauses
+end
+
 """
     resolve(goals, clauses; <keyword arguments>)
 
@@ -247,16 +290,10 @@ SLD-resolution of goals with additional Prolog-like control flow.
   A function `f` should be stored as funcs[:f] = f
 """
 function resolve(goals::Vector{<:Term}, clauses::Vector{Clause}; options...)
-    # Convert list of clauses to dict for efficiency
-    clause_dict = Dict{Symbol,Vector{Clause}}()
-    for c in clauses
-        push!(get!(clause_dict, c.head.name, Clause[]), c)
-    end
-    return resolve(goals, clause_dict; options...)
+    return resolve(goals, index_clauses(clauses); options...)
 end
 
-function resolve(goals::Vector{<:Term}, clauses::Dict{Symbol,Vector{Clause}};
-                 options...)
+function resolve(goals::Vector{<:Term}, clauses::ClauseTable; options...)
     # Unpack options
     env = Subst(get(options, :env, []))
     occurs_check = get(options, :occurs_check, false)
@@ -318,8 +355,8 @@ function resolve(goals::Vector{<:Term}, clauses::Dict{Symbol,Vector{Clause}};
         end
         # Substitute variables in term
         term = freshen(substitute(term, goal.env))
-        # Iterate across clause set with matching head functor
-        matched_clauses = get(clauses, term.name, Clause[])
+        # Iterate across clause set with matching heads
+        matched_clauses = retrieve_clauses(term, clauses)
         matched = false
         for c in matched_clauses
             # If term unifies with head of a clause, add it as a subgoal
