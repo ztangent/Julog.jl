@@ -109,7 +109,7 @@ function retrieve_clauses(term::Term, table::ClauseTable)
     return clauses
 end
 
-"Subtract the second clause table from the first clause table."
+"Subtract the second clause table from the first clause table (in-place)."
 function subtract_clauses!(table1::ClauseTable, table2::ClauseTable)
     for (functor, subtable2) in table2
         if !(functor in keys(table1)) continue end
@@ -120,4 +120,9 @@ function subtract_clauses!(table1::ClauseTable, table2::ClauseTable)
         end
     end
     return table1
+end
+
+"Subtract the second clause table from the first clause table."
+function subtract_clauses(table1::ClauseTable, table2::ClauseTable)
+    return subtract_clauses!(deepcopy(table1), table2)
 end
