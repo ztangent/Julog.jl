@@ -24,3 +24,10 @@ subst = Set(subst)
 @test @folsub({X => huike, Y => daoxin}) in subst
 @test @folsub({X => sengcan, Y => hongren}) in subst
 @test @folsub({X => daoxin, Y => huineng}) in subst
+
+# Test clause table manipulation
+table = index_clauses(clauses[1:4])
+table = index_clauses(clauses[5:end], table)
+@test table == index_clauses(clauses)
+subtract_clauses!(table, index_clauses(clauses[5:end]))
+@test Set(deindex_clauses(table)) == Set(clauses[1:4])

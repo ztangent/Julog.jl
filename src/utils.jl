@@ -49,3 +49,71 @@ function compose(s1::Subst, s2::Subst)
     subst = Subst(var => substitute(val, s2) for (var, val) in s1)
     return merge(s2, subst)
 end
+
+"Nested dictionary to store indexed clauses."
+ClauseTable = Dict{Symbol,Dict{Symbol,Vector{Clause}}}
+
+"Index clauses by functor name and first argument for efficient look-up."
+function index_clauses(clauses::Vector{Clause}, table::ClauseTable=ClauseTable())
+    for c in clauses
+        subtable = get!(table, c.head.name, Dict{Symbol,Vector{Clause}}())
+        if isa(c.head, Compound) && length(c.head.args) >= 1
+            arg = c.head.args[1]
+            if isa(arg, Var)
+                push!(get!(subtable, :__var__, Clause[]), c)
+            else
+                push!(get!(subtable, Symbol(arg.name), Clause[]), c)
+            end
+            push!(get!(subtable, :__all__, Clause[]), c)
+        else
+            push!(get!(subtable, :__no_args__, Clause[]), c)
+        end
+    end
+    return table
+end
+
+"Convert indexed clause table to flat list of clauses."
+function deindex_clauses(table::ClauseTable)
+    clauses = Clause[]
+    for (functor, subtable) in table
+        if :__no_args__ in keys(subtable)
+            append!(clauses, subtable[:__no_args__])
+        else
+            append!(clauses, subtable[:__all__])
+        end
+    end
+    return clauses
+end
+
+"Retrieve matching clauses from indexed clause table."
+function retrieve_clauses(term::Term, table::ClauseTable)
+    clauses = Clause[]
+    if term.name in keys(table)
+        subtable = table[term.name]
+        if isa(term, Compound) && length(term.args) >= 1
+            arg = term.args[1]
+            if isa(arg, Var)
+                clauses = get(subtable, :__all__, Clause[])
+            else
+                clauses = [get(subtable, Symbol(arg.name), Clause[]);
+                           get(subtable, :__var__, Clause[])]
+            end
+        else
+            clauses = get(subtable, :__no_args__, Clause[])
+        end
+    end
+    return clauses
+end
+
+"Subtract the second clause table from the first clause table."
+function subtract_clauses!(table1::ClauseTable, table2::ClauseTable)
+    for (functor, subtable2) in table2
+        if !(functor in keys(table1)) continue end
+        subtable1 = table1[functor]
+        for arg in keys(subtable2)
+            if !(arg in keys(subtable1)) continue end
+            setdiff!(subtable1[arg], subtable2[arg])
+        end
+    end
+    return table1
+end
