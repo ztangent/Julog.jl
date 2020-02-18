@@ -44,7 +44,7 @@ eval_term(term::Var, env::Subst, funcs::Dict=Dict()) =
     term in keys(env) ? eval_term(env[term], env, funcs) : term
 function eval_term(term::Compound, env::Subst, funcs::Dict=Dict())
     args = Term[eval_term(a, env, funcs) for a in term.args]
-    funcs = merge(default_funcs, funcs)
+    funcs = length(funcs) > 0 ? merge(default_funcs, funcs) : default_funcs
     if term.name in keys(funcs) && all([isa(a, Const) for a in args])
         func = funcs[term.name]
         if isa(func, Function)
@@ -73,9 +73,12 @@ Unifies src with dst and returns a dictionary of any substitutions needed.
 - `src::Term`: A term to unify.
 - `dst::Term`: A term to unify (src/dst order does not matter).
 - `occurs_check::Bool=true`: Whether to perform the occurs check.
+- `funcs::Dict=Dict()`: Custom functions to evaluate.
 """
-function unify(src::Term, dst::Term, occurs_check::Bool=true)
+function unify(src::Term, dst::Term,
+               occurs_check::Bool=true, funcs::Dict=Dict())
     stack = Tuple{Term, Term}[(src, dst)]
+    deferred = Tuple{Term, Term}[]
     subst = Subst()
     success = true
     while length(stack) > 0
@@ -127,8 +130,17 @@ function unify(src::Term, dst::Term, occurs_check::Bool=true)
             stack = vcat(stack, collect(zip(src.args, dst.args)))
         else
             # Reaches here if one term is compound and the other is constant
-            @debug "No: Can't unify constant with compound"
+            push!(deferred, (src, dst)) # Defer potential evaluations
+        end
+    end
+    # Try evaluating deferred Const vs Compound comparisons
+    while length(deferred) > 0
+        (src, dst) = pop!(deferred)
+        src, dst = eval_term(src, subst, funcs), eval_term(dst, subst, funcs)
+        if src != dst
+            @debug "No: cannot unify $src and $dst after evaluation"
             success = false
+            break
         end
     end
     return success ? subst : nothing
@@ -165,9 +177,8 @@ function handle_builtins!(queue, clauses, goal, term; options...)
         term = substitute(term, goal.env)
         occurs_check = get(options, :occurs_check, false)
         for i in 1:(length(term.args)-1)
-            if unify(term.args[i], term.args[i+1], occurs_check) == nothing
-                return false
-            end
+            t1, t2 = term.args[i], term.args[i+1]
+            if (unify(t1, t2, occurs_check, funcs) == nothing) return false end
         end
         return true
     elseif term.name == :and
@@ -291,8 +302,8 @@ function resolve(goals::Vector{<:Term}, clauses::ClauseTable; options...)
             # Unify goal term with corresponding term in parent
             src = substitute(goal.term, goal.env)
             dst = parent.children[parent.active]
-            unif = unify(src, dst, occurs_check)
-            parent.env = compose(parent.env, unif)
+            unifier = unify(src, dst, occurs_check, funcs)
+            parent.env = compose(parent.env, unifier)
             # Advance parent to next subgoal and put it back on the queue
             parent.active += 1
             push!(queue, parent)
@@ -315,11 +326,11 @@ function resolve(goals::Vector{<:Term}, clauses::ClauseTable; options...)
         # Substitute and freshen variables in term
         term = freshen(substitute(term, goal.env))
         # Iterate across clause set with matching heads
-        matched_clauses = retrieve_clauses(clauses, term)
+        matched_clauses = retrieve_clauses(clauses, term, funcs)
         matched = false
         for c in matched_clauses
             # If term unifies with head of a clause, add it as a subgoal
-            child_env = unify(term, c.head, occurs_check)
+            child_env = unify(term, c.head, occurs_check, funcs)
             if child_env != nothing
                 child = GoalTree(c.head, goal, copy(c.body), 1, child_env)
                 push!(queue, child)

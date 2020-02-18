@@ -18,6 +18,16 @@ funcs[:fakesum] = Dict((1, 1) => 2, (2, 2) => 4)
 @test resolve(@fol(fakesum(2, 2) == 4), Clause[], funcs=funcs)[1] == true
 
 clauses = @fol [
+    even(X) <<= mod(X, 2) == 0,
+    is_dup(X) <<= fst(X) == snd(X),
+    is_square(5, 5, 25) <<= true
+]
+
+@test resolve(@fol(even(fakesum(1, 1))), clauses, funcs=funcs)[1] == true
+@test resolve(@fol(is_dup(dup(8))), clauses, funcs=funcs)[1] == true
+@test resolve(@fol(is_square(5, X, square(5))), clauses, funcs=funcs)[1] == true
+
+clauses = @fol [
     on_circ(Rad, Pt) <<= square(fst(Pt)) + square(snd(Pt)) == square(Rad),
     on_diag(X, Y) <<= dup(X) == pair(X, Y)
 ]

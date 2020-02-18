@@ -1,21 +1,9 @@
-"Replace all variables in a term with fresh names."
-freshen(t::Term) = error("Not implemented.")
-freshen(t::Const) = t
-freshen(t::Var) = Var(gensym(t.name))
-freshen(t::Compound) = Compound(t.name, Term[freshen(a) for a in t.args])
-
-"Replace selected variables in a term with fresh names."
-freshen(t::Term, vars::Set{Var}) = error("Not implemented.")
-freshen(t::Const, vars::Set{Var}) = t
-freshen(t::Var, vars::Set{Var}) = v in vars ? Var(gensym(t.name)) : t
-freshen(t::Compound, vars::Set{Var}) =
-    Compound(t.name, Term[freshen(a, vars) for a in t.args])
-
 "Return all vars in a term."
 get_vars(t::Term) = error("Not implemented.")
 get_vars(t::Const) = Set{Var}()
 get_vars(t::Var) = Set{Var}([t])
-get_vars(t::Compound) = union([get_vars(a) for a in t.args]...)
+get_vars(t::Compound) =
+    length(t.args) > 0 ? union([get_vars(a) for a in t.args]...) : Set{Var}()
 
 "Check if a term is ground (contains no variables)."
 is_ground(t::Term) = error("Not implemented.")
@@ -48,6 +36,22 @@ end
 function compose(s1::Subst, s2::Subst)
     subst = Subst(var => substitute(val, s2) for (var, val) in s1)
     return merge(s2, subst)
+end
+
+"Replace all variables in a term with fresh names."
+function freshen(term::Term)
+    for var in get_vars(term)
+        term = substitute(term, var, Var(gensym(var.name)))
+    end
+    return term
+end
+
+"Replace selected variables in a term with fresh names."
+function freshen(term::Term, vars::Set{Var})
+    for var in vars
+        term = substitute(term, var, Var(gensym(var.name)))
+    end
+    return term
 end
 
 "Nested dictionary to store indexed clauses."
@@ -100,13 +104,14 @@ function deindex_clauses(table::ClauseTable)
 end
 
 "Retrieve matching clauses from indexed clause table."
-function retrieve_clauses(table::ClauseTable, term::Term)
+function retrieve_clauses(table::ClauseTable, term::Term, funcs::Dict=Dict())
     clauses = Clause[]
+    funcs = length(funcs) > 0 ? merge(default_funcs, funcs) : default_funcs
     if term.name in keys(table)
         subtable = table[term.name]
         if isa(term, Compound) && length(term.args) >= 1
             arg = term.args[1]
-            if isa(arg, Var)
+            if isa(arg, Var) || arg.name in keys(funcs)
                 clauses = get(subtable, :__all__, Clause[])
             else
                 clauses = [get(subtable, Symbol(arg.name), Clause[]);
