@@ -85,6 +85,8 @@ function unify(src::Term, dst::Term,
         (src, dst) = pop!(stack)
         @debug "Unify $src with $dst"
         if isa(src, Const) && isa(dst, Const)
+            if src.name in keys(funcs) src = eval_term(src, Subst(), funcs) end
+            if dst.name in keys(funcs) dst = eval_term(dst, Subst(), funcs) end
             if src.name == dst.name
                 @debug "Yes: equal constants"
                 continue
