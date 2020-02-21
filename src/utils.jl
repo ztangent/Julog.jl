@@ -38,21 +38,24 @@ function compose(s1::Subst, s2::Subst)
     return merge(s2, subst)
 end
 
-"Replace all variables in a term with fresh names."
-function freshen(term::Term)
-    for var in get_vars(term)
-        term = substitute(term, var, Var(gensym(var.name)))
+"Compose two substitutions (s2 after s1), modifying s1 in place."
+function compose!(s1::Subst, s2::Subst)
+    for (var, val) in s1
+        s1[var] = substitute(val, s2)
     end
-    return term
+    for (var, val) in s2
+        if !(var in keys(s1)) s1[var] = val end
+    end
+    return s1
 end
 
-"Replace selected variables in a term with fresh names."
+"Replace variables in a term with fresh names."
 function freshen(term::Term, vars::Set{Var})
-    for var in vars
-        term = substitute(term, var, Var(gensym(var.name)))
-    end
-    return term
+    vmap = Subst(v => Var(gensym(v.name)) for v in vars)
+    term = substitute(term, vmap)
+    return term, vmap
 end
+freshen(term::Term) = freshen(term, get_vars(term))
 
 "Nested dictionary to store indexed clauses."
 ClauseTable = Dict{Symbol,Dict{Symbol,Vector{Clause}}}

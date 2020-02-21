@@ -4,11 +4,12 @@ mutable struct GoalTree
     parent::Union{GoalTree,Nothing} # Parent goal
     children::Vector{Term} # List of subgoals
     active::Int # Index of active subgoal
-    env::Subst # Dictionary of variable mappings
+    env::Subst # Dictionary of variable mappings for the current goal
+    vmap::Subst # Variables inherited from parent
 end
 
 GoalTree(g::GoalTree) =
-    GoalTree(g.term, g.parent, copy(g.children), g.active, copy(g.env))
+    GoalTree(g.term, g.parent, copy(g.children), g.active, copy(g.env), g.vmap)
 
 "Built-in arithmetic operations."
 const math_ops = Set([:+, :-, :*, :/, :mod])
@@ -182,7 +183,7 @@ function handle_builtins!(queue, clauses, goal, term; options...)
         subst = unify(lhs, rhs, occurs_check, funcs)
         if (subst == nothing) return false end
         # Update variable bindings if satisfied
-        goal.env = compose(goal.env, subst)
+        goal.env = compose!(goal.env, subst)
         return true
     elseif term.name == :and
         # Remove self and add all arguments as children to the goal, succeed
@@ -210,7 +211,7 @@ function handle_builtins!(queue, clauses, goal, term; options...)
         sat, subst = resolve(Term[cond, body], clauses; options...,
                              env=copy(goal.env), mode=:any)
         # Update variable bindings if satisfied
-        goal.env = sat ? compose(goal.env, subst[1]) : goal.env
+        goal.env = sat ? compose!(goal.env, subst[1]) : goal.env
         return sat
     elseif term.name == :forall
         # forall(Cond, Body) holds if Body holds for all bindings of Cond
@@ -272,7 +273,7 @@ function resolve(goals::Vector{<:Term}, clauses::ClauseTable; options...)
     funcs = get(options, :funcs, Dict())
     mode = get(options, :mode, :all)
     # Construct top level goal and put it on the queue
-    queue = [GoalTree(Const(false), nothing, Vector{Term}(goals), 1, env)]
+    queue = [GoalTree(Const(false), nothing, Vector{Term}(goals), 1, env, Subst())]
     subst = []
     # Iterate across queue of goals
     while length(queue) > 0
@@ -302,11 +303,14 @@ function resolve(goals::Vector{<:Term}, clauses::ClauseTable; options...)
             @debug string("Done, returning to parent.")
             # Copy construct parent to create fresh copy of environment
             parent = GoalTree(goal.parent)
-            # Unify goal term with corresponding term in parent
-            src = substitute(goal.term, goal.env)
-            dst = parent.children[parent.active]
-            unifier = unify(src, dst, occurs_check, funcs)
-            parent.env = compose(parent.env, unifier)
+            # Remap variables from child to parent
+            vmap = Subst()
+            for (pvar, cvar) in goal.vmap
+                if !(cvar in keys(goal.env)) continue end
+                if pvar == goal.env[cvar] continue end
+                vmap[pvar] = goal.env[cvar]
+            end
+            parent.env = compose!(parent.env, vmap)
             # Advance parent to next subgoal and put it back on the queue
             parent.active += 1
             push!(queue, parent)
@@ -327,15 +331,15 @@ function resolve(goals::Vector{<:Term}, clauses::ClauseTable; options...)
             continue
         end
         # Substitute and freshen variables in term
-        term = freshen(substitute(term, goal.env))
+        term, vmap = freshen(substitute(term, goal.env))
         # Iterate across clause set with matching heads
         matched_clauses = retrieve_clauses(clauses, term, funcs)
         matched = false
         for c in matched_clauses
             # If term unifies with head of a clause, add it as a subgoal
-            child_env = unify(term, c.head, occurs_check, funcs)
-            if child_env != nothing
-                child = GoalTree(c.head, goal, copy(c.body), 1, child_env)
+            unifier = unify(term, c.head, occurs_check, funcs)
+            if unifier != nothing
+                child = GoalTree(c.head, goal, copy(c.body), 1, unifier, vmap)
                 push!(queue, child)
                 matched = true
             end
