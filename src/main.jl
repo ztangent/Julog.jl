@@ -175,13 +175,14 @@ function handle_builtins!(queue, clauses, goal, term; options...)
         end
         return false
     elseif term.name == :unifies
-        # Check if all arguments unify
+        # Check if LHS and RHS unify
         term = substitute(term, goal.env)
         occurs_check = get(options, :occurs_check, false)
-        for i in 1:(length(term.args)-1)
-            t1, t2 = term.args[i], term.args[i+1]
-            if (unify(t1, t2, occurs_check, funcs) == nothing) return false end
-        end
+        lhs, rhs = term.args[1], term.args[2]
+        subst = unify(lhs, rhs, occurs_check, funcs)
+        if (subst == nothing) return false end
+        # Update variable bindings if satisfied
+        goal.env = compose(goal.env, subst)
         return true
     elseif term.name == :and
         # Remove self and add all arguments as children to the goal, succeed
@@ -208,7 +209,7 @@ function handle_builtins!(queue, clauses, goal, term; options...)
         cond, body = term.args[1], term.args[2]
         sat, subst = resolve(Term[cond, body], clauses; options...,
                              env=copy(goal.env), mode=:any)
-        # Update bindings if satisfied
+        # Update variable bindings if satisfied
         goal.env = sat ? compose(goal.env, subst[1]) : goal.env
         return sat
     elseif term.name == :forall

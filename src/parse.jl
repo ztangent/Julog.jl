@@ -4,11 +4,15 @@ function parse_term(expr)
         # Strings, numbers, enums and bools are automatically constants
         return :(Const($expr))
     elseif isa(expr, Symbol)
-        # As in Prolog, initial lowercase symbols are parsed to constants
-        if islowercase(string(expr)[1])
-            return Expr(:call, Const, Meta.quot(expr))
-        else
+        if isuppercase(string(expr)[1])
+            # As in Prolog, initial uppercase symbols are parsed to constants
             return Expr(:call, Var, Meta.quot(expr))
+        elseif expr == :_
+            # Underscores are wildcards, parsed to variables with new names
+            return Expr(:call, Var, Meta.quot(gensym(expr)))
+        else
+            # Everything else is parsed to a constant
+            return Expr(:call, Const, Meta.quot(expr))
         end
     elseif isa(expr, Expr) && expr.head == :tuple
         # Fully evaluated tuples are valid constants
@@ -37,21 +41,23 @@ end
 
 "Parse arguments of vector using Prolog-style list syntax."
 function parse_list(args)
-    if (length(args) == 1 && isa(args[1], Expr) &&
-        args[1].head == :call && args[1].args[1] == :|)
-        # Handle [H|T] syntax
-        head = parse_term(args[1].args[2])
-        tail = parse_term(args[1].args[3])
-        return :(Compound(:c, [$head, $tail]))
+    if (length(args) > 0 && isa(args[end], Expr) &&
+        args[end].head == :call && args[end].args[1] == :|)
+        # Handle [... | Tail] syntax for last element
+        tail = parse_term(args[end].args[3])
+        pretail = parse_term(args[end].args[2])
+        tail = :(Compound(:c, [$pretail, $tail]))
+        args = args[1:end-1]
     else
-        # Recursively build list using :c (short for cons)
-        elts = [parse_term(a) for a in args]
-        tail = :(Compound(:cend, [])) # Initialize tail to empty list
-        for e in reverse(elts)
-            tail = :(Compound(:c, [$e, $tail]))
-        end
-        return tail
+        # Initialize tail to empty list
+        tail = :(Compound(:cend, []))
     end
+    # Recursively build list using :c (short for cons)
+    elts = [parse_term(a) for a in args]
+    for e in reverse(elts)
+        tail = :(Compound(:c, [$e, $tail]))
+    end
+    return tail
 end
 
 "Parse body of Julog clause using Prolog-like syntax, with '&' replacing ','."

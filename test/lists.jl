@@ -1,3 +1,8 @@
+# Test list parsing
+@test @julog(list(c(x, c(y, c(z, cend()))))) == @julog(list([x, y, z]))
+@test @julog(list(c(x, c(y, c(z, W))))) == @julog(list([x, y, z | W]))
+@test @julog(list([x|[y|[z]]])) == @julog(list([x, y, z]))
+
 # Test list functionality with some basic list operations
 clauses = @julog [
     member(X, [X | Y]) <<= true,
