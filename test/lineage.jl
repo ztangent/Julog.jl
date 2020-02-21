@@ -1,5 +1,5 @@
 # Test composition and transitive relations using the traditional Zen lineage
-clauses = @fol [
+clauses = @julog [
     ancestor(sakyamuni, bodhidharma) <<= true,
     teacher(bodhidharma, huike) <<= true,
     teacher(huike, sengcan) <<= true,
@@ -12,18 +12,18 @@ clauses = @fol [
 ]
 
 # Is Sakyamuni the dharma ancestor of Huineng?
-goals = @fol [ancestor(sakyamuni, huineng)]
+goals = @julog [ancestor(sakyamuni, huineng)]
 sat, subst = resolve(goals, clauses);
 @test sat == true
 
 # Who are the grandteachers of whom?
-goals = @fol [grandteacher(X, Y)]
+goals = @julog [grandteacher(X, Y)]
 sat, subst = resolve(goals, clauses)
 subst = Set(subst)
-@test @folsub({X => bodhidharma, Y => sengcan}) in subst
-@test @folsub({X => huike, Y => daoxin}) in subst
-@test @folsub({X => sengcan, Y => hongren}) in subst
-@test @folsub({X => daoxin, Y => huineng}) in subst
+@test @varsub({X => bodhidharma, Y => sengcan}) in subst
+@test @varsub({X => huike, Y => daoxin}) in subst
+@test @varsub({X => sengcan, Y => hongren}) in subst
+@test @varsub({X => daoxin, Y => huineng}) in subst
 
 # Test clause table manipulation
 table = index_clauses(clauses[1:4])

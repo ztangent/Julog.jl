@@ -1,4 +1,4 @@
-"Parse FOL terms using Prolog-like syntax."
+"Parse Julog terms using Prolog-like syntax."
 function parse_term(expr)
     if isa(expr, Union{String,Number,Enum,Bool})
         # Strings, numbers, enums and bools are automatically constants
@@ -31,7 +31,7 @@ function parse_term(expr)
         return :($(esc(val)))
     else
         dump(expr)
-        error("syntax error in FOL term at $expr")
+        error("syntax error in Julog term at $expr")
     end
 end
 
@@ -54,7 +54,7 @@ function parse_list(args)
     end
 end
 
-"Parse body of FOL clause using Prolog-like syntax, with '&' replacing ','."
+"Parse body of Julog clause using Prolog-like syntax, with '&' replacing ','."
 function parse_body(expr)
     if expr == true
         return []
@@ -69,41 +69,41 @@ function parse_body(expr)
         end
     else
         dump(expr)
-        error("syntax error in body of FOL clause at $expr")
+        error("syntax error in body of Julog clause at $expr")
     end
 end
 
-"Parse FOL expression using Prolog-like syntax. '<<=' replaces ':-' in clauses."
-function parse_fol(expr)
+"Parse Julog expression using Prolog-like syntax. '<<=' replaces ':-' in clauses."
+function parse_julog(expr)
     if isa(expr, Expr) && expr.head == :<<=
         head = parse_term(expr.args[1])
         body = parse_body(expr.args[2])
         return :(Clause($head, [$(body...)]))
     elseif isa(expr, Expr) && expr.head == :vect
-        exprs = [parse_fol(a) for a in expr.args]
+        exprs = [parse_julog(a) for a in expr.args]
         return :([$(exprs...)])
     else
         return parse_term(expr)
     end
 end
 
-"Macro that parses and return FOL expressions."
-macro fol(expr)
-    return parse_fol(expr)
+"Macro that parses and return Julog expressions."
+macro julog(expr)
+    return parse_julog(expr)
 end
 
-"Macro that parses FOL substitutions, e.g. {X => hello, Y => world}."
-macro folsub(expr)
+"Macro that parses Julog substitutions, e.g. {X => hello, Y => world}."
+macro varsub(expr)
     if !(isa(expr, Expr) && expr.head == :braces)
-        error("Invalid format for FOL substitutions.")
+        error("Invalid format for Julog substitutions.")
     end
     vars = [Var(a.args[2]) for a in expr.args]
     terms = [eval(parse_term(a.args[3])) for a in expr.args]
     return Subst(v => t for (v,t) in zip(vars, terms))
 end
 
-"Convert Prolog string to list of FOL strings."
-function prolog_to_fol(str::String)
+"Convert Prolog string to list of Julog strings."
+function prolog_to_julog(str::String)
     clauses = String[]
     # Match each clause (being careful to handle periods in lists + floats)
     for m in eachmatch(r"((?:\d\.\d+|[^\.]|\.\()*)\.\s*", str)
@@ -143,14 +143,14 @@ function prolog_to_fol(str::String)
     return clauses
 end
 
-"Parse FOL expression from string using standard Prolog syntax."
+"Parse Julog expression from string using standard Prolog syntax."
 function parse_prolog(str::String)
-    strs = prolog_to_fol(str)
-    exprs = [@fol($(Meta.parse(s))) for s in strs]
+    strs = prolog_to_julog(str)
+    exprs = [@julog($(Meta.parse(s))) for s in strs]
     return exprs
 end
 
-"Write list of FOL clauses to Prolog string."
+"Write list of Julog clauses to Prolog string."
 function write_prolog(clauses::Vector{Clause})
     str = ""
     for clause in clauses
@@ -164,9 +164,9 @@ function write_prolog(clauses::Vector{Clause})
     return str
 end
 
-"Macro that parses Prolog programs as strings and returns FOL clauses."
+"Macro that parses Prolog programs as strings and returns Julog clauses."
 macro prolog(str::String)
-    strs = prolog_to_fol(str)
-    exprs = [parse_fol(Meta.parse(s)) for s in strs]
+    strs = prolog_to_julog(str)
+    exprs = [parse_julog(Meta.parse(s)) for s in strs]
     return :([$(exprs...)])
 end

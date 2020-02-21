@@ -9,7 +9,7 @@ pl_input = @prolog """
     dinosaur(A) :- member(A, [archaeopteryx, stegosaurus, triceratops]).
 """
 
-fol_clauses = @fol [
+julog_clauses = @julog [
     member(X, [X | Y]) <<= true,
     member(X, [Y | YS]) <<= member(X, YS),
     vertebrate(A) <<= fish(A),
@@ -22,7 +22,7 @@ fol_clauses = @fol [
     dinosaur(A) <<= member(A, [archaeopteryx, stegosaurus, triceratops])
 ]
 
-@test pl_input == fol_clauses
+@test pl_input == julog_clauses
 
 @test resolve(@prolog("bird(archaeopteryx)."), pl_input)[1] == true
 

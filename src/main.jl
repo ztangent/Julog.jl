@@ -29,7 +29,7 @@ const builtins = union(comp_ops, Set([
 "
     eval_term(term, env[, funcs])
 
-Given an environment, evaluate all variables in a FOL term to constants.
+Given an environment, evaluate all variables in a Julog term to constants.
 Returns a term that is as fully evaluated as possible.
 
 # Arguments
@@ -214,7 +214,7 @@ function handle_builtins!(queue, clauses, goal, term; options...)
     elseif term.name == :forall
         # forall(Cond, Body) holds if Body holds for all bindings of Cond
         cond, body = term.args[1], term.args[2]
-        term = @fol(not(and(:cond, not(:body)))) # Rewrite term
+        term = @julog(not(and(:cond, not(:body)))) # Rewrite term
         goal.children[goal.active] = term # Replace term
         goal.active -= 1
         return true
@@ -249,8 +249,8 @@ end
 SLD-resolution of goals with additional Prolog-like control flow.
 
 # Arguments
-- `goals::Vector{<:Term}`: A list of FOL terms to be prove or query.
-- `clauses::Vector{Clause}`: A list of FOL clauses.
+- `goals::Vector{<:Term}`: A list of Julog terms to be prove or query.
+- `clauses::Vector{Clause}`: A list of Julog clauses.
 - `env::Subst=Subst([])`: An initial environment mapping variables to terms.
 - `mode::Symbol=:all`: How results should be returned.
   `:all` returns all possible substitiutions. `:any` returns the first

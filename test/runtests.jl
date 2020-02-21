@@ -1,4 +1,4 @@
-using FOL
+using Julog
 using Test
 
 include("lineage.jl")
