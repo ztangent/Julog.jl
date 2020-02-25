@@ -4,12 +4,12 @@ function parse_term(expr)
         # Strings, numbers, enums and bools are automatically constants
         return :(Const($expr))
     elseif isa(expr, Symbol)
-        if isuppercase(string(expr)[1])
-            # As in Prolog, initial uppercase symbols are parsed to constants
-            return Expr(:call, Var, Meta.quot(expr))
-        elseif expr == :_
+        if expr == :_
             # Underscores are wildcards, parsed to variables with new names
             return Expr(:call, Var, Meta.quot(gensym(expr)))
+        elseif isuppercase(string(expr)[1]) || string(expr)[1] == "_"
+            # Initial uppercase / underscored symbols are parsed to variables
+            return Expr(:call, Var, Meta.quot(expr))
         else
             # Everything else is parsed to a constant
             return Expr(:call, Const, Meta.quot(expr))
