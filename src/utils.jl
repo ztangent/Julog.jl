@@ -1,28 +1,37 @@
 "Return all vars in a term."
-get_vars(t::Term) = error("Not implemented.")
-get_vars(t::Const) = Set{Var}()
-get_vars(t::Var) = Set{Var}([t])
-get_vars(t::Compound) =
-    length(t.args) > 0 ? union([get_vars(a) for a in t.args]...) : Set{Var}()
+function get_vars(t::Term)
+    if t.type == constant return Set{Term}()
+    elseif t.type == variable return Set{Term}([t])
+    elseif length(t.args) == 0 return Set{Term}()
+    else return union([get_vars(a) for a in t.args]...)
+    end
+end
 
 "Check if a term is ground (contains no variables)."
-is_ground(t::Term) = error("Not implemented.")
-is_ground(t::Const) = true
-is_ground(t::Var) = false
-is_ground(t::Compound) = all([is_ground(a) for a in t.args])
+function is_ground(t::Term)
+    if t.type == constant return true
+    elseif t.type == variable return false
+    else return all([is_ground(a) for a in t.args])
+    end
+end
 
 "Check whether a variable appears in a term."
-occurs_in(v::Var, t::Term) = error("Not implemented.")
-occurs_in(v::Var, t::Const) = false
-occurs_in(v::Var, t::Var) = (v.name == t.name)
-occurs_in(v::Var, t::Compound) = any([occurs_in(v, a) for a in t.args])
+function occurs_in(v::Term, t::Term)
+    @assert v.type == variable
+    if t.type == constant return false
+    elseif t.type == variable return (v.name == t.name)
+    else return any([occurs_in(v, a) for a in t.args])
+    end
+end
 
 "Performs variable substitution of var by val in a term."
-substitute(term::Term, var::Var, val::Term) = error("Not implemented.")
-substitute(term::Const, var::Var, val::Term) = term
-substitute(term::Var, var::Var, val::Term) = term.name == var.name ? val : term
-substitute(term::Compound, var::Var, val::Term) =
-    Compound(term.name, Term[substitute(a, var, val) for a in term.args])
+function substitute(term::Term, var::Term, val::Term)
+    @assert var.type == variable
+    if term.type == constant return term
+    elseif term.type == variable return (term.name == var.name ? val : term)
+    else return Compound(term.name, [substitute(a,var,val) for a in term.args])
+    end
+end
 
 "Apply substitution to a term."
 function substitute(term::Term, subst::Subst)
@@ -50,7 +59,7 @@ function compose!(s1::Subst, s2::Subst)
 end
 
 "Replace variables in a term with fresh names."
-function freshen(term::Term, vars::Set{Var})
+function freshen(term::Term, vars::Set{Term})
     vmap = Subst(v => Var(gensym(v.name)) for v in vars)
     term = substitute(term, vmap)
     return term, vmap
@@ -68,9 +77,9 @@ function insert_clauses!(table::ClauseTable, clauses::Vector{Clause})
     # Iterate over clauses and insert into table
     for c in clauses
         subtable = get!(table, c.head.name, Dict{Symbol,Vector{Clause}}())
-        if isa(c.head, Compound) && length(c.head.args) >= 1
+        if c.head.type == compound && length(c.head.args) >= 1
             arg = c.head.args[1]
-            if isa(arg, Var)
+            if arg.type == variable
                 push!(get!(subtable, :__var__, Clause[]), c)
             else
                 push!(get!(subtable, Symbol(arg.name), Clause[]), c)
@@ -112,9 +121,9 @@ function retrieve_clauses(table::ClauseTable, term::Term, funcs::Dict=Dict())
     funcs = length(funcs) > 0 ? merge(default_funcs, funcs) : default_funcs
     if term.name in keys(table)
         subtable = table[term.name]
-        if isa(term, Compound) && length(term.args) >= 1
+        if term.type == compound && length(term.args) >= 1
             arg = term.args[1]
-            if isa(arg, Var) || arg.name in keys(funcs)
+            if arg.type == variable || arg.name in keys(funcs)
                 clauses = get(subtable, :__all__, Clause[])
             else
                 clauses = [get(subtable, Symbol(arg.name), Clause[]);

@@ -35,18 +35,18 @@ Returns a term that is as fully evaluated as possible.
 
 # Arguments
 - `term::Term`: A term to evaluate.
-- `env::Dict{Var,Term}`: An environment mapping variables to terms.
+- `env::Dict{Term,Term}`: An environment mapping variables to terms.
 - `funcs::Dict=Dict()`: Additional custom functions (e.g. custom math).
 "
-eval_term(term::Term, env::Subst, funcs::Dict=Dict()) = error("Not implemented")
-eval_term(term::Const, env::Subst, funcs::Dict=Dict()) =
-    term.name in keys(funcs) ? Const(funcs[term.name]) : term
-eval_term(term::Var, env::Subst, funcs::Dict=Dict()) =
-    term in keys(env) ? eval_term(env[term], env, funcs) : term
-function eval_term(term::Compound, env::Subst, funcs::Dict=Dict())
+function eval_term(term::Term, env::Subst=Subst(), funcs::Dict=Dict())
+    if term.type == constant
+        return term.name in keys(funcs) ? Const(funcs[term.name]) : term
+    elseif term.type == variable
+        return term in keys(env) ? eval_term(env[term], env, funcs) : term
+    end
     args = Term[eval_term(a, env, funcs) for a in term.args]
     funcs = length(funcs) > 0 ? merge(default_funcs, funcs) : default_funcs
-    if term.name in keys(funcs) && all([isa(a, Const) for a in args])
+    if term.name in keys(funcs) && all([a.type == constant for a in args])
         func = funcs[term.name]
         if isa(func, Function)
             # Evaluate function if all arguments are fully evulated
@@ -85,7 +85,7 @@ function unify(src::Term, dst::Term,
     while length(stack) > 0
         (src, dst) = pop!(stack)
         @debug "Unify $src with $dst"
-        if isa(src, Const) && isa(dst, Const)
+        if src.type == constant && dst.type == constant
             if src.name in keys(funcs) src = eval_term(src, Subst(), funcs) end
             if dst.name in keys(funcs) dst = eval_term(dst, Subst(), funcs) end
             if src.name == dst.name
@@ -96,8 +96,8 @@ function unify(src::Term, dst::Term,
                 success = false
                 break
             end
-        elseif isa(src, Var)
-            if isa(dst, Var) && src.name == dst.name
+        elseif src.type == variable
+            if dst.type == variable && src.name == dst.name
                 @debug "Yes: same variable"
                 continue
             elseif occurs_check && occurs_in(src, dst)
@@ -116,10 +116,10 @@ function unify(src::Term, dst::Term,
             end
             # Add substitution of src to dst
             subst[src] = dst
-        elseif isa(dst, Var)
+        elseif dst.type == variable
             @debug "Swap $dst and $src"
             push!(stack, (dst, src))
-        elseif isa(src, Compound) && isa(dst, Compound)
+        elseif src.type == compound && dst.type == compound
             if src.name != dst.name
                 @debug "No: diff functors"
                 success = false
@@ -139,6 +139,7 @@ function unify(src::Term, dst::Term,
     # Try evaluating deferred Const vs Compound comparisons
     while length(deferred) > 0
         (src, dst) = pop!(deferred)
+        # Unify if they evaluate to the same constant ("semantic" unification)
         src, dst = eval_term(src, subst, funcs), eval_term(dst, subst, funcs)
         if src != dst
             @debug "No: cannot unify $src and $dst after evaluation"
@@ -160,9 +161,9 @@ function handle_builtins!(queue, clauses, goal, term; options...)
         # Handle is/2 predicate
         qn, ans = term.args[1], eval_term(term.args[2], goal.env, funcs)
         # Failure if RHS is insufficiently instantiated
-        if !isa(ans, Const) return false end
+        if ans.type != constant return false end
         # LHS can either be a variable or evaluate to a constant
-        if isa(qn, Var) && !(qn in keys(goal.env))
+        if qn.type == variable && !(qn in keys(goal.env))
             # If LHS is a free variable, bind to RHS
             for (k, v) in goal.env
                 goal.env[k] = substitute(v, qn, ans)
@@ -172,7 +173,7 @@ function handle_builtins!(queue, clauses, goal, term; options...)
         else
             # If LHS evaluates to a constant, check if it is equal to RHS
             qn = eval_term(qn, goal.env, funcs)
-            return isa(qn, Const) ? qn == ans : false
+            return qn.type == constant ? qn == ans : false
         end
         return false
     elseif term.name == :unifies
@@ -240,7 +241,7 @@ function handle_builtins!(queue, clauses, goal, term; options...)
         return false
     elseif term.name in comp_ops || term.name in keys(funcs)
         result = eval_term(term, goal.env, funcs)
-        return (isa(result, Const) && result.name == true)
+        return (result.type == constant && result.name == true)
     end
     return false
 end
@@ -251,7 +252,7 @@ end
 SLD-resolution of goals with additional Prolog-like control flow.
 
 # Arguments
-- `goals::Vector{<:Term}`: A list of Julog terms to be prove or query.
+- `goals::Vector{Term}`: A list of Julog terms to be prove or query.
 - `clauses::Vector{Clause}`: A list of Julog clauses.
 - `env::Subst=Subst([])`: An initial environment mapping variables to terms.
 - `mode::Symbol=:all`: How results should be returned.
@@ -262,11 +263,11 @@ SLD-resolution of goals with additional Prolog-like control flow.
 - `funcs::Dict=Dict()`: Custom functions for evaluating terms.
   A function `f` should be stored as funcs[:f] = f
 """
-function resolve(goals::Vector{<:Term}, clauses::Vector{Clause}; options...)
+function resolve(goals::Vector{Term}, clauses::Vector{Clause}; options...)
     return resolve(goals, index_clauses(clauses); options...)
 end
 
-function resolve(goals::Vector{<:Term}, clauses::ClauseTable; options...)
+function resolve(goals::Vector{Term}, clauses::ClauseTable; options...)
     # Unpack options
     env = Subst(get(options, :env, []))
     occurs_check = get(options, :occurs_check, false)

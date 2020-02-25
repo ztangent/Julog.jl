@@ -1,21 +1,21 @@
 "Julog terms are variables, constants, or compound terms."
-abstract type Term end
+@enum TermType constant variable compound
 
-"Julog constants."
-struct Const <: Term
+"Julog terms have names, arguments (for compound terms), and types."
+struct Term
     name::Any
-end
-
-"Julog variables."
-struct Var <: Term
-    name::Symbol
-end
-
-"Julog compound terms (e.g. )."
-struct Compound <: Term
-    name::Symbol
     args::Vector{Term}
+    type::TermType
 end
+
+"Julog constants are terms with ground values/names and no arguments."
+Const(name::Any) = Term(name, Term[], constant)
+
+"Julog variables have symbols as names and take no arguments."
+Var(name::Symbol) = Term(name, Term[], variable)
+
+"Julog compound terms have symbols as names, and take arguments."
+Compound(name::Symbol, args::Vector{Term}) = Term(name, args, compound)
 
 "Julog clauses are definite Horn clauses of the form [head] <<= [body]."
 struct Clause
@@ -23,22 +23,17 @@ struct Clause
     body::Vector{Term}
 end
 
-"Substitution mapping from variables to terms."
-Subst = Dict{Var,Term}
+"Substitution mapping between terms."
+Subst = Dict{Term,Term}
 
 "Check if two terms are exactly equal."
-Base.:(==)(t1::Term, t2::Term) = false
-Base.:(==)(t1::Const, t2::Const) = t1.name == t2.name
-Base.:(==)(t1::Var, t2::Var) = t1.name == t2.name
-Base.:(==)(t1::Compound, t2::Compound) =
-    (t1.name == t2.name && length(t1.args) == length(t2.args) &&
-            all([a1 == a2 for (a1, a2) in zip(t1.args, t2.args)]))
+Base.:(==)(t1::Term, t2::Term) =
+    (t1.type == t2.type && t1.name == t2.name &&
+     length(t1.args) == length(t2.args) &&
+     all([a1 == a2 for (a1, a2) in zip(t1.args, t2.args)]))
 
 "Compute hash of Julog term from name and arguments."
-Base.hash(t::Term, h::UInt) = error("Not implemented.")
-Base.hash(t::Const, h::UInt) = hash(t.name, h)
-Base.hash(t::Var, h::UInt) = hash(t.name, h)
-Base.hash(t::Compound, h::UInt) = hash(t.name, hash(Tuple(t.args), h))
+Base.hash(t::Term, h::UInt) = hash(t.type, hash(t.name, hash(Tuple(t.args), h)))
 
 "Check if two clauses are exactly equal."
 Base.:(==)(c1::Clause, c2::Clause) =
@@ -59,16 +54,14 @@ end
 
 "Show Julog terms as they would be parsed."
 function Base.show(io::IO, t::Term)
-    print(io, t.name)
-end
-
-function Base.show(io::IO, t::Compound)
-    if t.name == :c && length(t.args) == 2
+    if t.type != compound
+        print(io, t.name)
+    elseif t.name == :c && length(t.args) == 2
         # Handle lists separately
         head, tail = t.args[1], t.args[2]
-        if isa(tail, Var)
+        if tail.type == variable
             print(io, "[", repr(head), " | ", repr(tail), "]")
-        elseif isa(tail, Compound) && tail.name == :cend
+        elseif tail.type == compound && tail.name == :cend
             print(io, "[", repr(head), "]")
         else
             print(io, "[", repr(head), ", ", repr(tail)[2:end-1], "]")

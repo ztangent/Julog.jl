@@ -28,7 +28,7 @@ function parse_term(expr)
         # A compound term comprises its name (functor) and arguments
         name = Meta.quot(expr.args[1])
         args = [parse_term(e) for e in expr.args[2:end]]
-        return :(Compound($name, [$(args...)]))
+        return :(Compound($name, Term[$(args...)]))
     elseif isa(expr, QuoteNode)
         # Evaluate quoted expression within scope of caller
         val = expr.value
@@ -46,16 +46,16 @@ function parse_list(args)
         # Handle [... | Tail] syntax for last element
         tail = parse_term(args[end].args[3])
         pretail = parse_term(args[end].args[2])
-        tail = :(Compound(:c, [$pretail, $tail]))
+        tail = :(Compound(:c, Term[$pretail, $tail]))
         args = args[1:end-1]
     else
         # Initialize tail to empty list
-        tail = :(Compound(:cend, []))
+        tail = :(Compound(:cend, Term[]))
     end
     # Recursively build list using :c (short for cons)
     elts = [parse_term(a) for a in args]
     for e in reverse(elts)
-        tail = :(Compound(:c, [$e, $tail]))
+        tail = :(Compound(:c, Term[$e, $tail]))
     end
     return tail
 end
