@@ -73,7 +73,7 @@ However, several important operators differ from Prolog, as shown by the example
 
 | Julog                                      | Prolog                                 | Meaning                             |
 |------------------------------------------|----------------------------------------|-------------------------------------|
-| `human(socrates) <<= true.`              | `human(socrates).`                     | Socrates is human.                  |
+| `human(socrates) <<= true`              | `human(socrates).`                     | Socrates is human.                  |
 | `mortal(X) <<= human(X)`                 | `mortal(X) :- human(X).`               | If X is human, X is mortal.         |
 | `!mortal(gaia)`                          | `\+mortal(gaia)`                       | Gaia is not mortal.                 |
 | `mortal(X) <<= can_live(X) & can_die(X)` | `mortal(X) :- can_live(X), can_die(X)` | X is mortal if it can live and die. |
