@@ -260,7 +260,8 @@ SLD-resolution of goals with additional Prolog-like control flow.
   after each satisfying substitution is found.
 - `occurs_check::Bool=false`: Flag for occurs check during unification
 - `funcs::Dict=Dict()`: Custom functions for evaluating terms.
-  A function `f` should be stored as funcs[:f] = f
+  A function `f` should be stored as `funcs[:f] = f`
+- `search::Symbol=:bfs`: search either breadth (`:bfs`) or depth-first (`:dfs`)
 """
 function resolve(goals::Vector{<:Term}, clauses::Vector{Clause}; options...)
     return resolve(goals, index_clauses(clauses); options...)
@@ -272,12 +273,13 @@ function resolve(goals::Vector{<:Term}, clauses::ClauseTable; options...)
     occurs_check = get(options, :occurs_check, false)
     funcs = get(options, :funcs, Dict())
     mode = get(options, :mode, :all)
+    search = get(options, :search, :bfs)
     # Construct top level goal and put it on the queue
     queue = [GoalTree(Const(false), nothing, Vector{Term}(goals), 1, env, Subst())]
     subst = []
     # Iterate across queue of goals
     while length(queue) > 0
-        goal = popfirst!(queue)
+        goal = (search == :dfs) ? pop!(queue) : popfirst!(queue)
         @debug string("Goal: ", Clause(goal.term, goal.children), " ",
                       "Env: ", goal.env)
         if goal.active > length(goal.children)
