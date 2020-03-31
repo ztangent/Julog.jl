@@ -247,6 +247,7 @@ end
 
 """
     resolve(goals, clauses; <keyword arguments>)
+    bwd_chain(goals, clauses; <keyword arguments>)
 
 SLD-resolution of goals with additional Prolog-like control flow.
 
@@ -352,10 +353,93 @@ function resolve(goals::Vector{<:Term}, clauses::ClauseTable; options...)
     return (length(subst) > 0), subst
 end
 
-"Resolve a single term with respect to a set of clauses."
 resolve(goal::Term, clauses::Vector{Clause}; options...) =
     resolve(Term[goal], clauses; options...)
 
-"Resolve a set of clauses as goals by converting them to terms."
 resolve(goals::Vector{Clause}, clauses::Vector{Clause}; options...) =
     resolve([convert(Term, g) for g in goals], clauses; options...)
+
+const bwd_chain = resolve
+
+"Return all facts derivable in `n` steps from the initial set of clauses."
+function derivations(clauses::Vector{Clause}, n::Real=1; options...)
+    rules = filter(c -> length(c.body) > 0, clauses)
+    facts = filter(c -> length(c.body) == 0, clauses)
+    return derivations(rules, facts, n; options...)
+end
+
+derivations(rules::Vector{Clause}, facts::Vector{Clause}, n::Real=1; options...) =
+    derivations(rules, index_clauses(facts), n; options...)
+
+function derivations(rules::Vector{Clause}, facts::ClauseTable, n::Real=1;
+                     as_indexed::Bool=false, options...)
+    step = 0
+    n_facts = num_clauses(facts)
+    while step < n
+        # Iteratively add facts derivable from each rule
+        derived = derive_step(rules, facts; options...)
+        insert_clauses!(facts, derived)
+        # Terminate early if we reach a fixed point
+        n_facts_new = num_clauses(facts)
+        if (n_facts < n_facts_new) n_facts = n_facts_new else break end
+        step += 1
+    end
+    return as_indexed ? facts : deindex_clauses(facts)
+end
+
+"Iteratively add facts derivable from each rule."
+function derive_step(rules::Vector{Clause}, facts::ClauseTable; options...)
+    # Iteratively add facts derivable from each rule
+    derived = Term[]
+    for r in rules
+        # Find all valid substitutions of each rule's body
+        _, subst = resolve(r.body, facts; options...)
+        append!(derived, Term[substitute(r.head, s) for s in subst])
+    end
+    return [Clause(d, []) for d in derived]
+end
+
+"""
+    derive(goals, clauses; <keyword arguments>)
+    fwd_chain(goals, clauses; <keyword arguments>)
+
+Derive goals via forward-chaining from the initial set of clauses.
+
+# Arguments
+- `goals::Vector{<:Term}`: A list of Julog terms to be prove or query.
+- `clauses::Vector{Clause}`: A list of Julog clauses.
+- `max-steps::Real=100`: Maximum steps before terminating with failure.
+
+See `resolve` for other supported arguments.
+"""
+function derive(goals::Vector{<:Term}, clauses::Vector{Clause};
+                max_steps::Real=100, options...)
+    grounded = all(is_ground.(goals))
+    rules = filter(c -> length(c.body) > 0, clauses)
+    facts = index_clauses(filter(c -> length(c.body) == 0, clauses))
+    n_facts = num_clauses(facts)
+    step = 0
+    while step < max_steps
+        # Return all goals are grounded and satisfied
+        if grounded
+            sat, subst = resolve(goals, facts; options...)
+            if sat return sat, subst end
+        end
+        # Iteratively add facts derivable from each rule
+        derived = derive_step(rules, facts; options...)
+        insert_clauses!(facts, derived)
+        # Terminate early if we reach a fixed point
+        n_facts_new = num_clauses(facts)
+        if (n_facts < n_facts_new) n_facts = n_facts_new else break end
+        step += 1
+    end
+    return resolve(goals, facts; options...)
+end
+
+derive(goal::Term, clauses::Vector{Clause}; options...) =
+    derive(Term[goal], clauses; options...)
+
+derive(goals::Vector{Clause}, clauses::Vector{Clause}; options...) =
+    derive([convert(Term, g) for g in goals], clauses; options...)
+
+const fwd_chain = derive

@@ -154,3 +154,16 @@ end
 function subtract_clauses(table::ClauseTable, clauses::Vector{Clause})
     return subtract_clauses(table, index_clauses(clauses))
 end
+
+"Return number of clauses in indexed clause table."
+function num_clauses(table::ClauseTable)
+    n = 0
+    for (functor, subtable) in table
+        if :__no_args__ in keys(subtable)
+            n += length(subtable[:__no_args__])
+        else
+            n += length(subtable[:__all__])
+        end
+    end
+    return n
+end

@@ -25,6 +25,15 @@ subst = Set(subst)
 @test @varsub({X => sengcan, Y => hongren}) in subst
 @test @varsub({X => daoxin, Y => huineng}) in subst
 
+# Test that forward chaining produces the same / correct results
+fwd_sat, fwd_subst = derive(goals, clauses)
+@test fwd_sat == sat
+@test Set(fwd_subst) == subst
+n_init = 6
+n_ancestor = 5 + 15
+n_grandteacher = 4
+@test length(derivations(clauses, Inf)) == n_ancestor + n_grandteacher + n_init
+
 # Test clause table manipulation
 table = index_clauses(clauses[1:4])
 table = insert_clauses!(table, clauses[4:end])
