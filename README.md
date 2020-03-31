@@ -2,6 +2,17 @@
 
 A Julia package for Prolog-style logic programming.
 
+## Installation
+
+Enter the package manager by pressing `]` at the Julia REPL, then run:
+```
+add Julog
+```
+The latest development version can also be installed by running:
+```
+add <link to this git repository>
+```
+
 ## Features
 
 - [Prolog-like syntax](#syntax)
@@ -9,7 +20,7 @@ A Julia package for Prolog-style logic programming.
 - [Custom function support](#custom-functions)
 - [Built-in predicates and logical connectives](#built-in-predicates)
 
-## Examples
+## Usage
 
 [Terms](http://www.dai.ed.ac.uk/groups/ssp/bookpages/quickprolog/node5.html) and [Horn clauses](https://en.wikipedia.org/wiki/Horn_clause) can be expressed in Prolog-like syntax using the
 `@julog` macro:
@@ -36,7 +47,7 @@ clauses = @julog [
   grandteacher(A, C) <<= teacher(A, B) & teacher(B, C)
 ]
 ```
-We can then query the knowledge base via [SLD resolution](https://en.wikipedia.org/wiki/SLD_resolution):
+With the `resolve` function, we can query the knowledge base via [SLD resolution](https://en.wikipedia.org/wiki/SLD_resolution) (the form of backward-chaining proof search used by Prolog):
 ```julia
 # Query: Is Sakyamuni the dharma ancestor of Huineng?
 julia> goals = @julog [ancestor(sakyamuni, huineng)]; # List of terms to query or prove
@@ -53,6 +64,23 @@ julia> subst
   {Y => daoxin, X => huike}
   {Y => hongren, X => sengcan}
   {Y => huineng, X => daoxin}
+```
+
+Forward-chaining proof search is supported as well, using `derive`. We can also compute the list of n-step derivations with `derivations(clauses, n)`:
+```julia
+# Facts derivable from one iteration through the rules
+julia> derivations(clauses, 1)
+16-element Array{Clause,1}:
+ teacher(bodhidharma, huike)
+ ⋮
+ ancestor(sakyamuni, huike)
+
+# The set of all derivable facts (i.e. the closure / fixed-point)
+julia> derivations(clauses, Inf)
+30-element Array{Clause,1}:
+ teacher(bodhidharma, huike)
+ ⋮
+ ancestor(sakyamuni, huineng)
 ```
 
 More examples can be found in the [`test`](test) folder.
