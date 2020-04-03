@@ -57,6 +57,109 @@ function freshen(term::Term, vars::Set{Var})
 end
 freshen(term::Term) = freshen(term, get_vars(term))
 
+"Rewrite implications using and, or and not, subsume true and false."
+function simplify(term::Compound)
+    if !(term.name in logicals) return term end
+    args = simplify.(term.args)
+    if term.name in [:imply, :(=>)]
+        cond, body = args
+        return simplify(@julog or(not(:cond), and(:cond, :body)))
+    elseif term.name == :and
+        if length(args) == 1 return args[1]
+        elseif any(a -> a.name == false, args) return Const(false)
+        elseif all(a -> a.name == true, args) return Const(true)
+        else term = Compound(term.name, filter!(a -> a.name != true, args)) end
+    elseif term.name == :or
+        if length(args) == 1 return args[1]
+        elseif any(a -> a.name == true, args) return Const(true)
+        elseif all(a -> a.name == false, args) return Const(false)
+        else term = Compound(term.name, filter!(a -> a.name != false, args)) end
+    elseif term.name in [:not, :!]
+        if args[1].name == true return Const(false)
+        elseif args[1].name == false return Const(true)
+        else return Compound(:not, args) end
+    end
+    return length(term.args) == 1 ? term.args[1] : term
+end
+simplify(term::Const) = term
+simplify(term::Var) = term
+
+"Convert a term to negation normal form."
+function to_nnf(term::Compound)
+    if !(term.name in logicals) return term end
+    term = simplify(term)
+    if term.name in [:not, :!]
+        inner = term.args[1]
+        if inner.name in [:not, :!]
+            term = inner.args[1]
+        elseif inner.name in [true, false]
+            term = Const(!inner.name)
+        elseif inner.name in [:and, :or]
+            args = to_nnf.([@julog(not(:a)) for a in inner.args])
+            term = Compound(inner.name == :and ? :or : :and, args)
+        end
+    else
+        term = Compound(term.name, to_nnf.(term.args))
+    end
+    return term
+end
+to_nnf(term::Const) = term
+to_nnf(term::Var) = term
+
+"Convert a term to conjunctive normal form."
+function to_cnf(term::Compound)
+    term = to_nnf(term)
+    if !(term.name in [:and, :or]) return @julog and(or(:term)) end
+    subterms = to_cnf.(term.args)
+    if term.name == :and
+        args = foldl(vcat, [a.args for a in subterms]; init=Compound[])
+        term = Compound(:and, args)
+    elseif term.name == :or
+        stack = Compound[@julog(or())]
+        for subterm in subterms
+            new_stack = Compound[]
+            for disj_i in stack
+                for disj_j in subterm.args
+                    new_disj = Compound(:or, [disj_i.args; disj_j.args])
+                    push!(new_stack, new_disj)
+                end
+            end
+            stack = new_stack
+        end
+        term = Compound(:and, stack)
+    end
+    return term
+end
+to_cnf(term::Const) = @julog and(or(:term))
+to_cnf(term::Var) = @julog and(or(:term))
+
+"Convert a term to disjunctive normal form."
+function to_dnf(term::Compound)
+    term = to_nnf(term)
+    if !(term.name in [:and, :or]) return @julog or(and(:term)) end
+    subterms = to_dnf.(term.args)
+    if term.name == :or
+        args = foldl(vcat, [a.args for a in subterms]; init=Compound[])
+        term = Compound(:or, args)
+    elseif term.name == :and
+        stack = Compound[@julog(and())]
+        for subterm in subterms
+            new_stack = Compound[]
+            for conj_i in stack
+                for conj_j in subterm.args
+                    new_conj = Compound(:and, [conj_i.args; conj_j.args])
+                    push!(new_stack, new_conj)
+                end
+            end
+            stack = new_stack
+        end
+        term = Compound(:or, stack)
+    end
+    return term
+end
+to_dnf(term::Const) = @julog or(and(:term))
+to_dnf(term::Var) = @julog or(and(:term))
+
 "Nested dictionary to store indexed clauses."
 ClauseTable = Dict{Symbol,Dict{Symbol,Vector{Clause}}}
 
@@ -166,4 +269,20 @@ function num_clauses(table::ClauseTable)
         end
     end
     return n
+end
+
+"Convert any clauses with disjunctions in their bodies into a set of clauses."
+function regularize_clauses(clauses::Vector{Clause})
+    regularized = Clause[]
+    for c in clauses
+        if length(c.body) == 0
+            push!(regularized, c)
+        else
+            body = Compound(:and, c.body)
+            for conj in to_dnf(body).args
+                push!(regularized, Clause(c.head, conj.args))
+            end
+        end
+    end
+    return regularized
 end

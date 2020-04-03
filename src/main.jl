@@ -19,13 +19,11 @@ const comp_ops = Set([:(==), :<=, :>=, :<, :>, :(!=)])
 const ops = union(math_ops, comp_ops)
 "Built-in functions."
 const default_funcs = Dict(op => (args...) -> eval(op)(args...) for op in ops)
+"Built-in logical connectives."
+const logicals = Set([true, false, :and, :or, :not, :!,
+                      :exists, :forall, :imply, :(=>)])
 "Built-in predicates with special handling during SLD resolution."
-const builtins = union(comp_ops, Set([
-    true, false, :and, :or,
-    :unifies, :is, :not, :!,
-    :exists, :forall, :imply, :(=>),
-    :cut, :fail
-]))
+const builtins = union(comp_ops, logicals, Set([:is, :unifies, :cut, :fail]))
 
 "
     eval_term(term, env[, funcs])
