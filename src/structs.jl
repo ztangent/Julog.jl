@@ -94,3 +94,7 @@ end
 function Base.show(io::IO, subst::Subst)
     print(io, "{", join(["$k => $v" for (k, v) in subst], ", ")..., "}")
 end
+
+"Get arguments of a term."
+get_args(term::Term) = Term[]
+get_args(term::Compound) = term.args
