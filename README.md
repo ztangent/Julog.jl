@@ -183,10 +183,12 @@ See [`test/custom_funcs.jl`](test/custom_funcs.jl) for more examples.
 - `and(A, B, C, ...)` is equivalent to `A & B & C & ...` in the body of an Julog clause.
 - `or(A, B, C, ...)` is equivalent to `A ; B ; C ; ...` in Prolog-syntax.
 - `not(X)` / `!X` is true if X cannot be proven (i.e. negation as failure).
-- `unifies(X, Y)` is true if `X` unifies with `Y`.
+- `unifies(X, Y)` / `X ≐ Y` is true if `X` unifies with `Y`.
 - `exists(Cond, Act)` is true if `Act` is true for at least one binding of `Cond`.
 - `forall(Cond, Act)` is true if `Act` is true for all possible bindings of `Cond` (beware infinite loops).
 - `imply(Cond, Act)` / `Cond => Act` is true if either `Cond` is false, or both `Cond` and `Act` are true.
+- `findall(Template, Cond, List)` finds all instances where `Cond` is true, substitutes any variables into `Template`, and unifies `List` with the result
+- `countall(Cond, N)` counts the number of proofs of `Cond` and unifies `N` with the result
 - `fail` causes the current goal to fail (equivalent to `false`).
 - `cut` causes the current goal to succeed and suppresses all other goals. However, this does not have the same effects as in Prolog because `Julog` uses breadth-first search during SLD-resolution, unlike most Prolog implementations, which use depth-first search.
 

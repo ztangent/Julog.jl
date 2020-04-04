@@ -93,6 +93,18 @@ ans = Set([@varsub({X => hera}), @varsub({X => zeus}),
            @varsub({X => aphrodite}), @varsub({X => ares})])
 @test ans == Set(subst)
 
+# Test findall/3 and countall/2
+humans = @julog list[pythagoras, pyrrho, zeno, epicurus, aristotle, plato]
+@test resolve(@julog(findall(X, human(X), :humans)), clauses)[1] == true
+@test resolve(@julog(countall(human(X), 6)), clauses)[1] == true
+gods = @julog list[hera, zeus, aphrodite, ares]
+@test resolve(@julog(findall(X, god(X), :gods)), clauses)[1] == true
+@test resolve(@julog(countall(god(X), 4)), clauses)[1] == true
+persons = @julog list[pythagoras, pyrrho, zeno, epicurus, aristotle, plato,
+                      hera, zeus, aphrodite, ares]
+@test resolve(@julog(findall(X, person(X), :persons)), clauses)[1] == true
+@test resolve(@julog(countall(person(X), 10)), clauses)[1] == true
+
 # Test cut and fail by preventing infinite loops
 clauses = @julog [
     fakeloop1(A) <<= fakeloop1(B),

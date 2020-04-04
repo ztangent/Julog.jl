@@ -23,7 +23,8 @@ const default_funcs = Dict(op => (args...) -> eval(op)(args...) for op in ops)
 const logicals = Set([true, false, :and, :or, :not, :!,
                       :exists, :forall, :imply, :(=>)])
 "Built-in predicates with special handling during SLD resolution."
-const builtins = union(comp_ops, logicals, Set([:is, :unifies, :cut, :fail]))
+const builtins = union(comp_ops, logicals,
+    Set([:is, :unifies, :≐, :cut, :fail, :findall, :countall]))
 
 "
     eval_term(term, env[, funcs])
@@ -150,6 +151,7 @@ end
 "Handle built-in predicates"
 function handle_builtins!(queue, clauses, goal, term; options...)
     funcs = get(options, :funcs, Dict())
+    occurs_check = get(options, :occurs_check, false)
     if term.name == true
         return true
     elseif term.name == false
@@ -173,15 +175,13 @@ function handle_builtins!(queue, clauses, goal, term; options...)
             return isa(qn, Const) ? qn == ans : false
         end
         return false
-    elseif term.name == :unifies
+    elseif term.name in [:unifies, :≐]
         # Check if LHS and RHS unify
         term = substitute(term, goal.env)
-        occurs_check = get(options, :occurs_check, false)
         lhs, rhs = term.args[1], term.args[2]
-        subst = unify(lhs, rhs, occurs_check, funcs)
-        if (subst == nothing) return false end
-        # Update variable bindings if satisfied
-        goal.env = compose!(goal.env, subst)
+        unifier = unify(lhs, rhs, occurs_check, funcs)
+        if (unifier == nothing) return false end
+        compose!(goal.env, unifier) # Update variable bindings if satisfied
         return true
     elseif term.name == :and
         # Remove self and add all arguments as children to the goal, succeed
@@ -205,7 +205,7 @@ function handle_builtins!(queue, clauses, goal, term; options...)
         return !sat # Success if no proof is found
     elseif term.name == :exists
         # exists(Cond, Body) holds if Body holds for at least 1 binding of Cond
-        cond, body = term.args[1], term.args[2]
+        cond, body = term.args
         sat, subst = resolve(Term[cond, body], clauses; options...,
                              env=copy(goal.env), mode=:any)
         # Update variable bindings if satisfied
@@ -213,14 +213,14 @@ function handle_builtins!(queue, clauses, goal, term; options...)
         return sat
     elseif term.name == :forall
         # forall(Cond, Body) holds if Body holds for all bindings of Cond
-        cond, body = term.args[1], term.args[2]
+        cond, body = term.args
         term = @julog(not(and(:cond, not(:body)))) # Rewrite term
         goal.children[goal.active] = term # Replace term
         goal.active -= 1
         return true
     elseif term.name in [:imply, :(=>)]
         # imply(Cond, Body) holds if or(not(Cond), Body) holds
-        cond, body = term.args[1], term.args[2]
+        cond, body = term.args
         sat, _ = resolve(Term[cond], clauses; options...,
                          env=copy(goal.env), mode=:any)
         # Return true if Cond does not hold
@@ -236,6 +236,25 @@ function handle_builtins!(queue, clauses, goal, term; options...)
     elseif term.name == :fail
         # Fail and skip goal
         return false
+    elseif term.name == :findall
+        # Find list of all cond matches, substituted into template
+        template, cond, list = term.args
+        _, subst = resolve(Term[cond], clauses; options...,
+                           env=copy(goal.env), mode=:all)
+        matches = to_term_list([substitute(template, s) for s in subst])
+        unifier = unify(list, matches, occurs_check, funcs)
+        if (unifier == nothing) return false end
+        compose!(goal.env, unifier) # Update variable bindings if satisfied
+        return true
+    elseif term.name == :countall
+        # Count number of ways to prove the condition
+        cond, count = term.args
+        _, subst = resolve(Term[cond], clauses; options...,
+                           env=copy(goal.env), mode=:all)
+        unifier = unify(count, Const(length(subst)), occurs_check, funcs)
+        if (unifier == nothing) return false end
+        compose!(goal.env, unifier) # Update variable bindings if satisfied
+        return true
     elseif term.name in comp_ops || term.name in keys(funcs)
         result = eval_term(term, goal.env, funcs)
         return (isa(result, Const) && result.name == true)
