@@ -57,6 +57,18 @@ function freshen(term::Term, vars::Set{Var})
 end
 freshen(term::Term) = freshen(term, get_vars(term))
 
+"Convert a vector of Julia objects to a Julog list of constants."
+to_const_list(v::Vector) =
+    foldr((i, j) -> Compound(:cons, [Const(i), j]), v; init=Compound(:cend, []))
+
+"Convert a vector of Julog terms to a Julog list."
+to_term_list(v::Vector{<:Term}) =
+    foldr((i, j) -> Compound(:cons, [i, j]), v; init=Compound(:cend, []))
+
+"Convert a list of Julog terms to a vector of Julog terms.."
+to_julia_list(list::Term) =
+    list.name == :cons ? [list.args[1]; to_julia_list(list.args[2])] : []
+
 "Rewrite implications using and, or and not, subsume true and false."
 function simplify(term::Compound)
     if !(term.name in logicals) return term end

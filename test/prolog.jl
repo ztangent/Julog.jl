@@ -18,7 +18,7 @@ julog_clauses = @julog [
     vertebrate(A) <<= bird(A),
     vertebrate(A) <<= mammal(A),
     bird(A) <<= dinosaur(A) & !reptile(A),
-    reptile(A) <<= member(A, c(stegosaurus, c(triceratops, []))),
+    reptile(A) <<= member(A, cons(stegosaurus, cons(triceratops, []))),
     dinosaur(A) <<= member(A, [archaeopteryx, stegosaurus, triceratops])
 ]
 

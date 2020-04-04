@@ -178,7 +178,7 @@ See [`test/custom_funcs.jl`](test/custom_funcs.jl) for more examples.
 
 `Julog` provides a number of built-in predicates for control-flow and convenience. Some of these are also part of ISO Prolog, but may not share the exact same behavior.
 
-- `c` and `cend` are reserved for lists. `[x, y, z]` is equivalent to `c(x, c(y, c(z, cend()))`.
+- `cons` and `cend` are reserved for lists. `[x, y, z]` is equivalent to `cons(x, cons(y, cons(z, cend()))`.
 - `true` and `false` operate as one might expect.
 - `and(A, B, C, ...)` is equivalent to `A & B & C & ...` in the body of an Julog clause.
 - `or(A, B, C, ...)` is equivalent to `A ; B ; C ; ...` in Prolog-syntax.

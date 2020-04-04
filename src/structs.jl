@@ -63,7 +63,7 @@ function Base.show(io::IO, t::Term)
 end
 
 function Base.show(io::IO, t::Compound)
-    if t.name == :c && length(t.args) == 2
+    if t.name == :cons && length(t.args) == 2
         # Handle lists separately
         head, tail = t.args[1], t.args[2]
         if isa(tail, Var)

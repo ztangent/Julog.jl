@@ -46,16 +46,16 @@ function parse_list(args)
         # Handle [... | Tail] syntax for last element
         tail = parse_term(args[end].args[3])
         pretail = parse_term(args[end].args[2])
-        tail = :(Compound(:c, [$pretail, $tail]))
+        tail = :(Compound(:cons, [$pretail, $tail]))
         args = args[1:end-1]
     else
         # Initialize tail to empty list
         tail = :(Compound(:cend, []))
     end
-    # Recursively build list using :c (short for cons)
+    # Recursively build list using :cons
     elts = [parse_term(a) for a in args]
     for e in reverse(elts)
-        tail = :(Compound(:c, [$e, $tail]))
+        tail = :(Compound(:cons, [$e, $tail]))
     end
     return tail
 end
@@ -88,6 +88,9 @@ function parse_julog(expr)
     elseif isa(expr, Expr) && expr.head == :vect
         exprs = [parse_julog(a) for a in expr.args]
         return :([$(exprs...)])
+    elseif isa(expr, Expr) && expr.head == :ref && expr.args[1] == :list
+        args = length(expr.args) > 1 ? expr.args[2:end] : []
+        return parse_list(expr.args[2:end])
     else
         return parse_term(expr)
     end
@@ -118,7 +121,7 @@ function prolog_to_julog(str::String)
         clause = replace(clause, "!" => "cut")
         clause = replace(clause, "\\+" => "!")
         clause = replace(clause, "->" => "=>")
-        clause = replace(clause, ".(" => "c(")
+        clause = replace(clause, ".(" => "cons(")
         # Try to match to definite clause
         m = match(r"(.*):-(.*)", clause)
         if m == nothing
