@@ -26,7 +26,7 @@ const logicals = Set([true, false, :and, :or, :not, :!,
 const builtins = union(comp_ops, logicals,
     Set([:is, :unifies, :≐, :cut, :fail, :findall, :countall]))
 
-"
+"""
     eval_term(term, env[, funcs])
 
 Given an environment, evaluate all variables in a Julog term to constants.
@@ -36,7 +36,7 @@ Returns a term that is as fully evaluated as possible.
 - `term::Term`: A term to evaluate.
 - `env::Dict{Var,Term}`: An environment mapping variables to terms.
 - `funcs::Dict=Dict()`: Additional custom functions (e.g. custom math).
-"
+"""
 eval_term(term::Term, env::Subst, funcs::Dict=Dict()) = error("Not implemented")
 eval_term(term::Const, env::Subst, funcs::Dict=Dict()) =
     term.name in keys(funcs) ? Const(funcs[term.name]) : term

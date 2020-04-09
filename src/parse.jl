@@ -16,7 +16,7 @@ function parse_term(expr)
         end
     elseif isa(expr, Expr) && expr.head == :tuple
         # Fully evaluated tuples are valid constants
-        return :(Const(eval($expr)))
+        return :(Const($(esc(expr))))
     elseif isa(expr, Expr) && expr.head == :vect
         # Parse vector as Prolog style list
         return parse_list(expr.args)
@@ -64,7 +64,8 @@ end
 function parse_body(expr)
     if expr == true
         return []
-    elseif isa(expr, Symbol)
+    elseif isa(expr, Symbol) || isa(expr, QuoteNode) ||
+           isa(expr, Expr) && expr.head in [:tuple, :vect, :$]
         return [parse_term(expr)]
     elseif isa(expr, Expr) && expr.head == :call
         if expr.args[1] == :&
@@ -81,14 +82,19 @@ end
 
 "Parse Julog expression using Prolog-like syntax. '<<=' replaces ':-' in clauses."
 function parse_julog(expr)
-    if isa(expr, Expr) && expr.head == :<<=
+    if !isa(expr, Expr)
+        return parse_term(expr)
+    elseif expr.head == :<<=
         head = parse_term(expr.args[1])
         body = parse_body(expr.args[2])
         return :(Clause($head, [$(body...)]))
-    elseif isa(expr, Expr) && expr.head == :vect
+    elseif expr.head == Symbol("'")
+        head = parse_term(expr.args[1])
+        return :(Clause($head, []))
+    elseif expr.head == :vect
         exprs = [parse_julog(a) for a in expr.args]
         return :([$(exprs...)])
-    elseif isa(expr, Expr) && expr.head == :ref && expr.args[1] == :list
+    elseif expr.head == :ref && expr.args[1] == :list
         args = length(expr.args) > 1 ? expr.args[2:end] : []
         return parse_list(expr.args[2:end])
     else
@@ -96,12 +102,27 @@ function parse_julog(expr)
     end
 end
 
-"Macro that parses and return Julog expressions."
+"""
+    @julog expr
+
+Parse and return Julog expressions.
+
+- `@julog <term>` parses a Prolog-style term.
+- `@julog <term> <<= true` or `@julog <term>'` parses a fact (body-less clause).
+- `@julog <head> <<= <body>` parses a definite clause.
+- `@julog [<term|clause>, ...]` parses a vector of terms or clauses
+- `@julog list[<term>, ...]` parses a Prolog-style list directly to a term.
+
+Additionally, the `\$` operator can be used to interpolate regular Julia
+expressions as Julog constants, while the `:` operator can be used to
+interpolate variables referring to pre-constructed Julog terms into
+another Julog term or clause.
+"""
 macro julog(expr)
     return parse_julog(expr)
 end
 
-"Macro that parses Julog substitutions, e.g. {X => hello, Y => world}."
+"Parse Julog substitutions, e.g. {X => hello, Y => world}."
 macro varsub(expr)
     if !(isa(expr, Expr) && expr.head == :braces)
         error("Invalid format for Julog substitutions.")
@@ -112,7 +133,7 @@ macro varsub(expr)
 end
 
 "Convert Prolog string to list of Julog strings."
-function prolog_to_julog(str::String)
+function convert_prolog_to_julog(str::String)
     clauses = String[]
     # Match each clause (being careful to handle periods in lists + floats)
     for m in eachmatch(r"((?:\d\.\d+|[^\.]|\.\()*)\.\s*", str)
@@ -154,7 +175,7 @@ end
 
 "Parse Julog expression from string using standard Prolog syntax."
 function parse_prolog(str::String)
-    strs = prolog_to_julog(str)
+    strs = convert_prolog_to_julog(str)
     exprs = [@julog($(Meta.parse(s))) for s in strs]
     return exprs
 end
@@ -173,9 +194,9 @@ function write_prolog(clauses::Vector{Clause})
     return str
 end
 
-"Macro that parses Prolog programs as strings and returns Julog clauses."
+"Parse Prolog program as a string and return a list of Julog clauses."
 macro prolog(str::String)
-    strs = prolog_to_julog(str)
+    strs = convert_prolog_to_julog(str)
     exprs = [parse_julog(Meta.parse(s)) for s in strs]
     return :([$(exprs...)])
 end
