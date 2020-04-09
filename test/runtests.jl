@@ -1,6 +1,7 @@
 using Julog
 using Test
 
+include("parse.jl")
 include("unify.jl")
 include("lineage.jl")
 include("naturals.jl")
