@@ -19,6 +19,7 @@ add <link to this git repository>
 - [Interpolation of expressions](#interpolation)
 - [Custom function support](#custom-functions)
 - [Built-in predicates and logical connectives](#built-in-predicates)
+- [Conversion utilities](#conversion-utilities)
 
 ## Usage
 
@@ -106,7 +107,7 @@ However, several important operators differ from Prolog, as shown by the example
 | `!mortal(gaia)`                          | `\+mortal(gaia)`                       | Gaia is not mortal.                 |
 | `mortal(X) <<= can_live(X) & can_die(X)` | `mortal(X) :- can_live(X), can_die(X)` | X is mortal if it can live and die. |
 
-In words, `<<=` replaces the Prolog turnstile `:-`, `<<= true` replaces `.` when stating facts, `!` replaces `\+` for negation, there is no longer a special operator for `cut`, `&` replaces `,` in the bodies of definite clauses, and there is no `or` operator like the `;` in Prolog.
+In words, `<<=` replaces the Prolog turnstile `:-`, `<<= true` or `'` replaces `.` when stating facts, `!` replaces `\+` for negation, there is no longer a special operator for `cut`, `&` replaces `,` in the bodies of definite clauses, and there is no `or` operator like the `;` in Prolog.
 
 If Prolog syntax is preferred, the `@prolog` macro and `parse_prolog` functions can be used to convert Prolog strings directly to Julog constructs, while `write_prolog` converts a list of Julog clauses to a Prolog string. However, this conversion cannot presently handle all of Prolog syntax (e.g., nested infix operators or comparison operators such as `=:=`), and should be used with caution.
 
@@ -193,6 +194,35 @@ See [`test/custom_funcs.jl`](test/custom_funcs.jl) for more examples.
 - `cut` causes the current goal to succeed and suppresses all other goals. However, this does not have the same effects as in Prolog because `Julog` uses breadth-first search during SLD-resolution, unlike most Prolog implementations, which use depth-first search.
 
 See [`test/builtins.jl`](test/builtins.jl) for usage examples.
+
+## Conversion Utilities
+
+Julog provides some support for converting and manipulating logical formulae,
+for example, conversion to negation, conjunctive, or disjunctive normal form:
+```julia
+julia> formula = @julog and(not(and(a, not(b))), c)
+julia> to_nnf(formula)
+and(or(not(a), b), c)
+julia> to_cnf(formula)
+and(or(not(a), b), or(c))
+julia> to_dnf(formula)
+or(and(not(a), c), and(b, c))
+```
+
+This can be useful for downstream applications, such as classical planning.
+Note however that these conversions do not handle the implicit existential
+quantification in Prolog semantics, and hence are not guaranteed to preserve equivalence when free variables are involved. In particular, care should be
+taken with negations of conjunctions of unbound predicates. For example,
+the following expression states that "All ravens are black.":
+```julia
+@julog not(and(raven(X), not(black(X))))
+```
+However, `to_dnf` doesn't handle the implied existential quantifier over `X`,
+and gives the non-equivalent statement "Either there are no ravens, or there
+exist black things, or both.":
+```julia
+@julog or(and(not(raven(X))), and(black(X)))
+```
 
 ## Acknowledgements
 
