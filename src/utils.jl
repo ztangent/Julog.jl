@@ -172,6 +172,26 @@ end
 to_dnf(term::Const) = @julog or(and(:term))
 to_dnf(term::Var) = @julog or(and(:term))
 
+"Instantiate universal quantifiers relative to a set of clauses."
+function deuniversalize(term::Compound, clauses::Vector{Clause})
+    if term.name == :forall
+        cond, body = term.args
+        sat, subst = resolve(cond, clauses)
+        if !sat return Const(true) end
+        instantiated = unique!(Term[substitute(body, s) for s in subst])
+        return Compound(:and, instantiated)
+    elseif term.name in logicals
+        args = Term[deuniversalize(a, clauses) for a in term.args]
+        return Compound(term.name, args)
+    else
+        return term
+    end
+end
+deuniversalize(term::Const, ::Vector{Clause}) = term
+deuniversalize(term::Var, ::Vector{Clause}) = term
+deuniversalize(c::Clause, clauses::Vector{Clause}) =
+    Clause(c.head, [deuniversalize(t, clauses) for t in c.body])
+
 "Nested dictionary to store indexed clauses."
 ClauseTable = Dict{Symbol,Dict{Symbol,Vector{Clause}}}
 
@@ -284,13 +304,14 @@ function num_clauses(table::ClauseTable)
 end
 
 "Convert any clauses with disjunctions in their bodies into a set of clauses."
-function regularize_clauses(clauses::Vector{Clause})
+function regularize_clauses(clauses::Vector{Clause}; instantiate::Bool=false)
     regularized = Clause[]
     for c in clauses
         if length(c.body) == 0
             push!(regularized, c)
         else
             body = Compound(:and, c.body)
+            if (instantiate == true) body = deuniversalize(body, clauses) end
             for conj in to_dnf(body).args
                 push!(regularized, Clause(c.head, conj.args))
             end

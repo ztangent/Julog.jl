@@ -16,6 +16,20 @@
 @test to_dnf(@julog(true => not(and(not(!a), b, or(not(c), false))))) ==
     @julog(or(and(not(a)), and(not(b)), and(c)))
 
+# Test instantiation of universal quantifiers
+clauses = @julog [
+    block(a) <<= true,
+    block(b) <<= true,
+    block(c) <<= true,
+    holding(a) <<= true
+]
+universal_term = @julog(forall(block(X), not(holding(X))))
+@test deuniversalize(universal_term, clauses) ==
+    @julog and(not(holding(a)), not(holding(b)), not(holding(c)))
+universal_clause = Clause(@julog(handempty), [universal_term])
+@test deuniversalize(universal_clause, clauses) ==
+    @julog handempty <<= and(not(holding(a)), not(holding(b)), not(holding(c)))
+
 # Test regularization of clause bodies
 clauses = @julog [
     binary(X) <<= or(woman(X), man(X)) & not(nonbinary(X)),
