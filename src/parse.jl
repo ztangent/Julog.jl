@@ -94,8 +94,15 @@ function parse_julog(expr)
     elseif expr.head == :vect
         exprs = [parse_julog(a) for a in expr.args]
         return :([$(exprs...)])
+    elseif expr.head == :ref && expr.args[1] == :Clause
+        ty = expr.args[1]
+        exprs = [parse_julog(a) for a in expr.args[2:end]]
+        return :(Clause[$(exprs...)])
+    elseif expr.head == :ref && expr.args[1] in [:Term, :Const, :Var, :Compound]
+        ty = expr.args[1]
+        exprs = [parse_term(a) for a in expr.args[2:end]]
+        return :($ty[$(exprs...)])
     elseif expr.head == :ref && expr.args[1] == :list
-        args = length(expr.args) > 1 ? expr.args[2:end] : []
         return parse_list(expr.args[2:end])
     else
         return parse_term(expr)
@@ -111,6 +118,7 @@ Parse and return Julog expressions.
 - `@julog <term> <<= true` or `@julog <term>'` parses a fact (body-less clause).
 - `@julog <head> <<= <body>` parses a definite clause.
 - `@julog [<term|clause>, ...]` parses a vector of terms or clauses
+- `@julog <T>[<term>, ...]` parses to a vector of type `T` (e.g. `Const`)
 - `@julog list[<term>, ...]` parses a Prolog-style list directly to a term.
 
 Additionally, the `\$` operator can be used to interpolate regular Julia

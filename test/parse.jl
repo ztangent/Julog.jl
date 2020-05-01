@@ -16,6 +16,12 @@
 
 # Parsing of lists of terms or clauses
 @test [Clause(Const(:fact), []), Const(:term)] == @julog [fact', term]
+@test [Clause(Const(:a), [Const(:b)])] == @julog Clause[a <<= b]
+@test Const[Const(:a), Const(:b)] == @julog [a, b]
+@test Term[Const(:a), Const(:b)] == @julog Term[a, b]
+@test Const[Const(:a), Const(:b)] == @julog Const[a, b]
+@test Var[Var(:A), Var(:B)] == @julog Var[A, B]
+@test Compound[Compound(:f, [Const(:arg)])] == @julog Compound[f(arg)]
 
 # Interpolation of constants and Julog expressions
 x, y = 2, Const(3)
