@@ -172,6 +172,14 @@ end
 to_dnf(term::Const) = @julog or(and(:term))
 to_dnf(term::Var) = @julog or(and(:term))
 
+"Recursively flatten conjunctions in a term to a list."
+flatten_conjs(t::Term) = t.name == :and ? flatten_conjs(get_args(t)) : t
+flatten_conjs(t::Vector{<:Term}) = reduce(vcat, flatten_conjs.(t); init=Term[])
+
+"Recursively flatten disjunctions in term to a list."
+flatten_disjs(t::Term) = t.name == :or ? flatten_disjs(get_args(t)) : t
+flatten_disjs(t::Vector{<:Term}) = reduce(vcat, flatten_disjs.(t); init=Term[])
+
 "Instantiate universal quantifiers relative to a set of clauses."
 function deuniversalize(term::Compound, clauses::Vector{Clause})
     if term.name == :forall

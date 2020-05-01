@@ -16,6 +16,12 @@
 @test to_dnf(@julog(true => not(and(not(!a), b, or(not(c), false))))) ==
     @julog(or(and(not(a)), and(not(b)), and(c)))
 
+# Test flattening of conjuctions and disjunctions
+@test flatten_conjs(@julog(and(a, and(b, c)))) == @julog Const[a, b, c]
+@test flatten_conjs(@julog([a, and(b, c)])) == @julog Const[a, b, c]
+@test flatten_disjs(@julog(or(a, or(b, c)))) == @julog Const[a, b, c]
+@test flatten_disjs(@julog([a, or(b, c)])) == @julog Const[a, b, c]
+
 # Test instantiation of universal quantifiers
 clauses = @julog [
     block(a) <<= true,
