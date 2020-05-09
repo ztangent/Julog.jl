@@ -15,3 +15,19 @@ subst = unify(@julog(f(g(X, h(X, b)), Z)), @julog(f(g(a, Z), Y)))
 @test unify(@julog(f(X, X*Y, Y)), @julog(f(4, Z, 5))) == @varsub {Y => 5, X => 4, Z => *(4, 5)}
 # X unifies to X, Y unifies to 5, X*Y cannot be evaluated and so fails to unify with 20
 @test unify(@julog(f(X, X*Y, Y)), @julog(f(X, 20, 5))) == nothing
+
+# Test subterm detection
+@test has_subterm(@julog(atom), @julog(Var)) == true
+
+@test has_subterm(@julog(functor(functor(atom))), @julog(functor)) == false
+@test has_subterm(@julog(functor(functor(atom))), @julog(atom)) == true
+@test has_subterm(@julog(functor(functor(atom))), @julog(functor(Var))) == true
+
+@test has_subterm(@julog(list[a, b, c, d]), @julog(b)) == true
+@test has_subterm(@julog(list[a, b, c, d]), @julog(list[a, b])) == false
+@test has_subterm(@julog(list[a, b, c, d]), @julog(list[c, d])) == true
+
+@test has_subterm(@julog(f(g(X, h(X, b)), Z)), @julog(h(X, Y))) == true
+
+subterms = find_subterms(@julog(foo(bar(1), bar(bar(2)))), @julog(bar(X)))
+@test Set(subterms) == Set(@julog(Term[bar(1), bar(bar(2)), bar(2)]))

@@ -57,6 +57,19 @@ function freshen(term::Term, vars::Set{Var})
 end
 freshen(term::Term) = freshen(term, get_vars(term))
 
+"Check whether a term has a matching subterm."
+function has_subterm(term::Term, subterm::Term)
+    if unify(term, subterm) != nothing return true end
+    return any([has_subterm(arg, subterm) for arg in get_args(term)])
+end
+
+"Find all matching subterms in a term."
+function find_subterms(term::Term, subterm::Term)
+    init = unify(term, subterm) != nothing ? Term[term] : Term[]
+    subterms = [find_subterms(a, subterm) for a in get_args(term)]
+    return reduce(vcat, subterms; init=init)
+end
+
 "Convert a vector of Julia objects to a Julog list of constants."
 to_const_list(v::Vector) =
     foldr((i, j) -> Compound(:cons, [Const(i), j]), v; init=Compound(:cend, []))
@@ -173,11 +186,11 @@ to_dnf(term::Const) = @julog or(and(:term))
 to_dnf(term::Var) = @julog or(and(:term))
 
 "Recursively flatten conjunctions in a term to a list."
-flatten_conjs(t::Term) = t.name == :and ? flatten_conjs(get_args(t)) : t
+flatten_conjs(t::Term) = t.name == :and ? flatten_conjs(get_args(t)) : Term[t]
 flatten_conjs(t::Vector{<:Term}) = reduce(vcat, flatten_conjs.(t); init=Term[])
 
 "Recursively flatten disjunctions in term to a list."
-flatten_disjs(t::Term) = t.name == :or ? flatten_disjs(get_args(t)) : t
+flatten_disjs(t::Term) = t.name == :or ? flatten_disjs(get_args(t)) : Term[t]
 flatten_disjs(t::Vector{<:Term}) = reduce(vcat, flatten_disjs.(t); init=Term[])
 
 "Instantiate universal quantifiers relative to a set of clauses."
