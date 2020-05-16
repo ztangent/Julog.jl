@@ -109,6 +109,8 @@ However, several important operators differ from Prolog, as shown by the example
 
 In words, `<<=` replaces the Prolog turnstile `:-`, `<<= true` or `'` replaces `.` when stating facts, `!` replaces `\+` for negation, there is no longer a special operator for `cut`, `&` replaces `,` in the bodies of definite clauses, and there is no `or` operator like the `;` in Prolog.
 
+In addition, when constructing Prolog-style linked-lists, the syntax `@julog list[a, b, c]` should be used when the list is not nested within any other compound term. This is because the `@julog [a, b, c]` syntax is reserved for creating a *Julia* list of Julog objects, such as a list of Julog clauses. Lists which are nested within other term, e.g., `member(b, [a, b, c])`, are parsed in the same way as Prolog.
+
 If Prolog syntax is preferred, the `@prolog` macro and `parse_prolog` functions can be used to convert Prolog strings directly to Julog constructs, while `write_prolog` converts a list of Julog clauses to a Prolog string. However, this conversion cannot presently handle all of Prolog syntax (e.g., nested infix operators or comparison operators such as `=:=`), and should be used with caution.
 
 ## Interpolation
@@ -179,7 +181,7 @@ See [`test/custom_funcs.jl`](test/custom_funcs.jl) for more examples.
 
 `Julog` provides a number of built-in predicates for control-flow and convenience. Some of these are also part of ISO Prolog, but may not share the exact same behavior.
 
-- `cons` and `cend` are reserved for lists. `list[x, y, z]` is equivalent to `cons(x, cons(y, cons(z, cend()))`.
+- `cons` and `cend` are reserved for lists. `[x, y, z]` is equivalent to `cons(x, cons(y, cons(z, cend()))`.
 - `true` and `false` operate as one might expect.
 - `and(A, B, C, ...)` is equivalent to `A & B & C & ...` in the body of an Julog clause.
 - `or(A, B, C, ...)` is equivalent to `A ; B ; C ; ...` in Prolog-syntax.
