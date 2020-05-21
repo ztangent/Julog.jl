@@ -111,8 +111,8 @@ simplify(term::Var) = term
 
 "Convert a term to negation normal form."
 function to_nnf(term::Compound)
-    if !(term.name in logicals) return term end
     term = simplify(term)
+    if !(term.name in logicals) return term end
     if term.name in [:not, :!]
         inner = term.args[1]
         if inner.name in [:not, :!]
