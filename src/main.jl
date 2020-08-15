@@ -24,7 +24,7 @@ const logicals = Set([true, false, :and, :or, :not, :!,
                       :exists, :forall, :imply, :(=>)])
 "Built-in predicates with special handling during SLD resolution."
 const builtins = union(comp_ops, logicals,
-    Set([:is, :unifies, :≐, :cut, :fail, :findall, :countall]))
+    Set([:is, :call, :unifies, :≐, :cut, :fail, :findall, :countall]))
 
 """
     eval_term(term, env[, funcs])
@@ -156,6 +156,15 @@ function handle_builtins!(queue, clauses, goal, term; options...)
         return true
     elseif term.name == false
         return false
+    elseif term.name == :call
+        # Handle meta-call predicate
+        pred, args = term.args[1], term.args[2:end]
+        if isa(pred, Var) pred = get(goal.env, pred, nothing) end
+        if isnothing(pred) error("$term not sufficiently instantiated.") end
+        term = Compound(pred.name, [pred.args; args]) # Rewrite term
+        goal.children[goal.active] = term # Replace term
+        goal.active -= 1
+        return true
     elseif term.name == :is
         # Handle is/2 predicate
         qn, ans = term.args[1], eval_term(term.args[2], goal.env, funcs)

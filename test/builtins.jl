@@ -114,3 +114,22 @@ clauses = @julog [
 
 @test resolve(@julog(fakeloop1(0)), clauses)[1] == true
 @test resolve(@julog(fakeloop2(0)), clauses)[1] == false
+
+# Test the meta-call predicate call/N
+clauses = @julog [
+    test(x, y) <<= true,
+    pred(test) <<= true,
+    metatest1(A, B, C) <<= call(A, B, C),
+    metatest2(A, B, C) <<= pred(A) & call(A, B, C)
+]
+
+@test_throws ErrorException resolve(@julog(call(P, A, B)), clauses)
+@test @varsub({A => x, B => y}) in resolve(@julog(call(test, A, B)), clauses)[2]
+@test @varsub({A => x, B => y}) in resolve(@julog(call(test(A), B)), clauses)[2]
+@test @varsub({B => y}) in resolve(@julog(call(test(x), B)), clauses)[2]
+@test @varsub({A => x}) in resolve(@julog(call(test(A), y)), clauses)[2]
+
+@test_throws ErrorException resolve(@julog(metatest1(P, x, y)), clauses)
+@test @varsub({B => y}) in resolve(@julog(metatest1(test, x, B)), clauses)[2]
+@test @varsub({P => test}) in resolve(@julog(metatest2(P, x, y)), clauses)[2]
+@test @varsub({B => y}) in resolve(@julog(metatest2(test, x, B)), clauses)[2]
