@@ -98,3 +98,9 @@ end
 "Get arguments of a term."
 get_args(term::Term) = Term[]
 get_args(term::Compound) = term.args
+
+Base.getproperty(t::Const, f::Symbol) = f == :args ? Term[] : getfield(t, f)
+Base.getproperty(t::Var, f::Symbol) = f == :args ? Term[] : getfield(t, f)
+
+Base.propertynames(t::Const) = (:name, :args)
+Base.propertynames(t::Var) = (:name, :args)
