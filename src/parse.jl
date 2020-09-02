@@ -153,7 +153,7 @@ function convert_prolog_to_julog(str::String)
         clause = replace(clause, ".(" => "cons(")
         # Try to match to definite clause
         m = match(r"(.*):-(.*)", clause)
-        if m == nothing
+        if isnothing(m)
             # Push fact on to list of clauses
             clause = clause * " <<= true"
             push!(clauses, clause)
