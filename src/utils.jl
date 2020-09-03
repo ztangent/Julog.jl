@@ -65,7 +65,7 @@ end
 
 "Find all matching subterms in a term."
 function find_subterms(term::Term, subterm::Term)
-    init = unify(term, subterm) !== nothing ? Term[term] : Term[]
+    init = !isnothing(unify(term, subterm)) ? Term[term] : Term[]
     subterms = [find_subterms(a, subterm) for a in get_args(term)]
     return reduce(vcat, subterms; init=init)
 end
