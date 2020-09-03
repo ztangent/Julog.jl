@@ -59,13 +59,13 @@ freshen(term::Term) = freshen(term, get_vars(term))
 
 "Check whether a term has a matching subterm."
 function has_subterm(term::Term, subterm::Term)
-    if unify(term, subterm) != nothing return true end
+    if !isnothing(unify(term, subterm)) return true end
     return any([has_subterm(arg, subterm) for arg in get_args(term)])
 end
 
 "Find all matching subterms in a term."
 function find_subterms(term::Term, subterm::Term)
-    init = unify(term, subterm) != nothing ? Term[term] : Term[]
+    init = !isnothing(unify(term, subterm)) ? Term[term] : Term[]
     subterms = [find_subterms(a, subterm) for a in get_args(term)]
     return reduce(vcat, subterms; init=init)
 end
