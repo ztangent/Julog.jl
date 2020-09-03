@@ -1,6 +1,6 @@
 @static if VERSION < v"1.1"
-    Base.isnothing(::Any) = false
-    Base.isnothing(::Nothing) = true
+    isnothing(::Any) = false
+    isnothing(::Nothing) = true
 end
 
 "Return all vars in a term."
