@@ -189,7 +189,7 @@ function handle_builtins!(queue, clauses, goal, term; options...)
         term = substitute(term, goal.env)
         lhs, rhs = term.args[1], term.args[2]
         unifier = unify(lhs, rhs, occurs_check, funcs)
-        if (isnothing(unifier)) return false end
+        if isnothing(unifier) return false end
         compose!(goal.env, unifier) # Update variable bindings if satisfied
         return true
     elseif term.name == :and
@@ -252,7 +252,7 @@ function handle_builtins!(queue, clauses, goal, term; options...)
                            env=copy(goal.env), mode=:all)
         matches = to_term_list([substitute(template, s) for s in subst])
         unifier = unify(list, matches, occurs_check, funcs)
-        if (isnothing(unifier)) return false end
+        if isnothing(unifier) return false end
         compose!(goal.env, unifier) # Update variable bindings if satisfied
         return true
     elseif term.name == :countall
@@ -261,7 +261,7 @@ function handle_builtins!(queue, clauses, goal, term; options...)
         _, subst = resolve(Term[cond], clauses; options...,
                            env=copy(goal.env), mode=:all)
         unifier = unify(count, Const(length(subst)), occurs_check, funcs)
-        if (isnothing(unifier)) return false end
+        if isnothing(unifier) return false end
         compose!(goal.env, unifier) # Update variable bindings if satisfied
         return true
     elseif term.name in comp_ops || term.name in keys(funcs)
