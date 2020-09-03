@@ -1,3 +1,8 @@
+@static if VERSION < v"1.1"
+    Base.isnothing(::Any) = false
+    Base.isnothing(::Nothing) = true
+end
+
 "Return all vars in a term."
 get_vars(t::Term) = error("Not implemented.")
 get_vars(t::Const) = Set{Var}()
