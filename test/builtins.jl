@@ -123,13 +123,13 @@ clauses = @julog [
     metatest2(A, B, C) <<= pred(A) & call(A, B, C)
 ]
 
-@test_throws ErrorException resolve(@julog(call(P, A, B)), clauses)
+@test_throws Exception resolve(@julog(call(P, A, B)), clauses)
 @test @varsub({A => x, B => y}) in resolve(@julog(call(test, A, B)), clauses)[2]
 @test @varsub({A => x, B => y}) in resolve(@julog(call(test(A), B)), clauses)[2]
 @test @varsub({B => y}) in resolve(@julog(call(test(x), B)), clauses)[2]
 @test @varsub({A => x}) in resolve(@julog(call(test(A), y)), clauses)[2]
 
-@test_throws ErrorException resolve(@julog(metatest1(P, x, y)), clauses)
+@test_throws Exception resolve(@julog(metatest1(P, x, y)), clauses)
 @test @varsub({B => y}) in resolve(@julog(metatest1(test, x, B)), clauses)[2]
 @test @varsub({P => test}) in resolve(@julog(metatest2(P, x, y)), clauses)[2]
 @test @varsub({B => y}) in resolve(@julog(metatest2(test, x, B)), clauses)[2]
