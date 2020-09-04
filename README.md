@@ -2,7 +2,7 @@
 
 ![GitHub Workflow Status](https://img.shields.io/github/workflow/status/ztangent/Julog.jl/CI)
 ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/ztangent/Julog.jl)
-![GitHub](https://img.shields.io/github/license/ztangent/Julog.jl)
+![License](https://img.shields.io/github/license/ztangent/Julog.jl?color=lightgrey)
 
 A Julia package for Prolog-style logic programming.
 
