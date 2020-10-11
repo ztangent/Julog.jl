@@ -1,5 +1,5 @@
 "Parse Julog terms using Prolog-like syntax."
-function parse_term(expr)
+function parse_term(expr, esc=esc)
     if isa(expr, Union{String,Number,Enum,Bool})
         # Strings, numbers, enums and bools are automatically constants
         return :(Const($expr))
@@ -26,13 +26,13 @@ function parse_term(expr)
         return :(Const($(esc(val))))
     elseif isa(expr, Expr) && expr.head == :call
         # A compound term comprises its name (functor) and arguments
-        name = Meta.quot(expr.args[1])
-        args = [parse_term(e) for e in expr.args[2:end]]
+        name = esc(Meta.quot(expr.args[1]))
+        args = [parse_term(e, esc) for e in expr.args[2:end]]
         return :(Compound($name, [$(args...)]))
     elseif isa(expr, QuoteNode)
         # Evaluate quoted expression within scope of caller
         val = expr.value
-        return :($(esc(val)))
+        return esc(val)
     else
         dump(expr)
         error("syntax error in Julog term at $expr")
@@ -95,7 +95,6 @@ function parse_julog(expr)
         exprs = [parse_julog(a) for a in expr.args]
         return :([$(exprs...)])
     elseif expr.head == :ref && expr.args[1] == :Clause
-        ty = expr.args[1]
         exprs = [parse_julog(a) for a in expr.args[2:end]]
         return :(Clause[$(exprs...)])
     elseif expr.head == :ref && expr.args[1] in [:Term, :Const, :Var, :Compound]
@@ -136,7 +135,7 @@ macro varsub(expr)
         error("Invalid format for Julog substitutions.")
     end
     vars = [Var(a.args[2]) for a in expr.args]
-    terms = [eval(parse_term(a.args[3])) for a in expr.args]
+    terms = [eval(parse_term(a.args[3], identity)) for a in expr.args]
     return Subst(v => t for (v,t) in zip(vars, terms))
 end
 
