@@ -30,3 +30,7 @@ x, y = 2, Const(3)
 not_even = Compound(:not, [Compound(:even, [Var(:X)])])
 odd_if_not_even = Clause(Compound(:odd, [Var(:X)]), [not_even])
 @test odd_if_not_even == @julog odd(X) <<= :not_even
+
+let f = :f
+    @test @julog($f(x)) == @julog(f(x))
+end
