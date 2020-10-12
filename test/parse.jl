@@ -34,3 +34,10 @@ odd_if_not_even = Clause(Compound(:odd, [Var(:X)]), [not_even])
 let f = :f
     @test @julog($f(x)) == @julog(f(x))
 end
+
+# Test parsing and interpolation in @varsub macro
+a, b = :alice, Const(:bob)
+s1 = Subst(Var(:A) => Const(a), Var(:B) => b)
+s2 = @varsub {A => alice, B => bob}
+s3 = @varsub {A => $a, B => :b}
+@test s1 == s2 == s3
