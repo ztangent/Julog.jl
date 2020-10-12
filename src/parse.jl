@@ -135,7 +135,7 @@ macro varsub(expr)
         error("Invalid format for Julog substitutions.")
     end
     vars = [Var(a.args[2]) for a in expr.args]
-    terms = [eval(parse_term(a.args[3], identity)) for a in expr.args]
+    terms = [Core.eval(__module__, parse_term(a.args[3], identity)) for a in expr.args]
     return Subst(v => t for (v,t) in zip(vars, terms))
 end
 
