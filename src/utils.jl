@@ -3,6 +3,16 @@
     isnothing(::Nothing) = true
 end
 
+@static if VERSION < v"1.2"
+    function map!(f, iter::ValueIterator)
+        dict = iter.dict
+        for (key, val) in pairs(dict)
+            dict[key] = f(val)
+        end
+        return iter
+    end
+end
+
 "Return all vars in a term."
 get_vars(t::Term) = error("Not implemented.")
 get_vars(t::Const) = Set{Var}()
