@@ -45,11 +45,11 @@ eval_term(term::Var, env::Subst, funcs::Dict=Dict()) =
 function eval_term(term::Compound, env::Subst, funcs::Dict=Dict())
     args = Term[eval_term(a, env, funcs) for a in term.args]
     funcs = length(funcs) > 0 ? merge(default_funcs, funcs) : default_funcs
-    if term.name in keys(funcs) && all([isa(a, Const) for a in args])
+    if term.name in keys(funcs) && all(isa(a, Const) for a in args)
         func = funcs[term.name]
         if isa(func, Function)
             # Evaluate function if all arguments are fully evulated
-            return Const(func([a.name for a in args]...))
+            return Const(func((a.name for a in args)...))
         elseif isa(func, Dict)
             # Lookup value if custom function is a lookup table
             key = Tuple(a.name for a in args)
@@ -83,53 +83,40 @@ function unify(src::Term, dst::Term,
     success = true
     while length(stack) > 0
         (src, dst) = pop!(stack)
-        @debug "Unify $src with $dst"
+        # Unify $src with $dst
         if isa(src, Const) && isa(dst, Const)
-            if src.name in keys(funcs) src = eval_term(src, Subst(), funcs) end
-            if dst.name in keys(funcs) dst = eval_term(dst, Subst(), funcs) end
-            if src.name == dst.name
-                @debug "Yes: equal constants"
+            if src.name in keys(funcs) src = Const(funcs[src.name]) end
+            if dst.name in keys(funcs) dst = Const(funcs[dst.name]) end
+            if src.name == dst.name # "Yes: equal constants"
                 continue
-            else
-                @debug "No: diff constants"
-                success = false
-                break
+            else # "No: diff constants"
+                success = false; break
             end
         elseif isa(src, Var)
-            if isa(dst, Var) && src.name == dst.name
-                @debug "Yes: same variable"
+            if isa(dst, Var) && src.name == dst.name # "Yes: same variable"
                 continue
-            elseif occurs_check && occurs_in(src, dst)
-                @debug "No: $src occurs in $dst"
-                success = false
-                break
+            elseif occurs_check && occurs_in(src, dst) # "No: src occurs in dst"
+                success = false; break
             end
-            @debug "Yes: substitute $src with $dst"
             # Replace src with dst in stack
-            stack = Tuple{Term, Term}[(substitute(s, src, dst),
-                                       substitute(d, src, dst))
-                                      for (s, d) in stack]
-            # Replace src with dst in substitution values
-            for (k, v) in subst
-                subst[k] = substitute(v, src, dst)
+            for (i, (s, d)) in enumerate(stack)
+                ss, dd = substitute(s, src, dst), substitute(d, src, dst)
+                if (s !== ss || d !== dd) stack[i] = (ss, dd) end
             end
+            # Replace src with dst in substitution values
+            map!(v -> substitute(v, src, dst), values(subst))
             # Add substitution of src to dst
             subst[src] = dst
-        elseif isa(dst, Var)
-            @debug "Swap $dst and $src"
+        elseif isa(dst, Var) # "Swap $dst and $src"
             push!(stack, (dst, src))
         elseif isa(src, Compound) && isa(dst, Compound)
-            if src.name != dst.name
-                @debug "No: diff functors"
-                success = false
-                break
-            elseif length(src.args) != length(dst.args)
-                @debug "No: diff arity"
-                success = false
-                break
+            if src.name != dst.name # "No: diff functors"
+                success = false; break
+            elseif length(src.args) != length(dst.args) # "No: diff arity"
+                success = false; break
             end
-            @debug "Yes: pushing args onto stack"
-            stack = vcat(stack, collect(zip(src.args, dst.args)))
+            # "Yes: pushing args onto stack"
+            stack = append!(stack, collect(zip(src.args, dst.args)))
         else
             # Reaches here if one term is compound and the other is constant
             push!(deferred, (src, dst)) # Defer potential evaluations
@@ -139,10 +126,8 @@ function unify(src::Term, dst::Term,
     while length(deferred) > 0
         (src, dst) = pop!(deferred)
         src, dst = eval_term(src, subst, funcs), eval_term(dst, subst, funcs)
-        if src != dst
-            @debug "No: cannot unify $src and $dst after evaluation"
-            success = false
-            break
+        if src != dst # "No: cannot unify $src and $dst after evaluation"
+            success = false; break
         end
     end
     return success ? subst : nothing

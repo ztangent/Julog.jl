@@ -8,26 +8,35 @@ get_vars(t::Term) = error("Not implemented.")
 get_vars(t::Const) = Set{Var}()
 get_vars(t::Var) = Set{Var}([t])
 get_vars(t::Compound) =
-    length(t.args) > 0 ? union([get_vars(a) for a in t.args]...) : Set{Var}()
+    length(t.args) > 0 ? union((get_vars(a) for a in t.args)...) : Set{Var}()
 
 "Check if a term is ground (contains no variables)."
 is_ground(t::Term) = error("Not implemented.")
 is_ground(t::Const) = true
 is_ground(t::Var) = false
-is_ground(t::Compound) = all([is_ground(a) for a in t.args])
+is_ground(t::Compound) = all(is_ground(a) for a in t.args)
 
 "Check whether a variable appears in a term."
 occurs_in(v::Var, t::Term) = error("Not implemented.")
 occurs_in(v::Var, t::Const) = false
 occurs_in(v::Var, t::Var) = (v.name == t.name)
-occurs_in(v::Var, t::Compound) = any([occurs_in(v, a) for a in t.args])
+occurs_in(v::Var, t::Compound) = any(occurs_in(v, a) for a in t.args)
 
 "Performs variable substitution of var by val in a term."
 substitute(term::Term, var::Var, val::Term) = error("Not implemented.")
 substitute(term::Const, var::Var, val::Term) = term
 substitute(term::Var, var::Var, val::Term) = term.name == var.name ? val : term
-substitute(term::Compound, var::Var, val::Term) =
-    Compound(term.name, Term[substitute(a, var, val) for a in term.args])
+function substitute(term::Compound, var::Var, val::Term)
+    args, ident = nothing, true
+    for (i, a) in enumerate(term.args)
+        b = substitute(a, var, val)
+        if ident && a !== b
+            args, ident = collect(term.args[1:i-1]), false
+        end
+        if !ident push!(args, b) end
+    end
+    return ident ? term : Compound(term.name, args)
+end
 
 "Apply substitution to a term."
 function substitute(term::Term, subst::Subst)
@@ -277,13 +286,13 @@ function retrieve_clauses(table::ClauseTable, term::Term, funcs::Dict=Dict())
         if isa(term, Compound) && length(term.args) >= 1
             arg = term.args[1]
             if isa(arg, Var) || arg.name in keys(funcs)
-                clauses = get(subtable, :__all__, Clause[])
+                clauses = get(subtable, :__all__, clauses)
             else
-                clauses = [get(subtable, Symbol(arg.name), Clause[]);
-                           get(subtable, :__var__, Clause[])]
+                clauses = [get(subtable, Symbol(arg.name), clauses);
+                           get(subtable, :__var__, clauses)]
             end
         else
-            clauses = get(subtable, :__no_args__, Clause[])
+            clauses = get(subtable, :__no_args__, clauses)
         end
     end
     return clauses
