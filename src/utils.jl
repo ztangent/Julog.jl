@@ -4,7 +4,7 @@
 end
 
 @static if VERSION < v"1.2"
-    function map!(f, iter::ValueIterator)
+    function map!(f, iter::Base.ValueIterator)
         dict = iter.dict
         for (key, val) in pairs(dict)
             dict[key] = f(val)
