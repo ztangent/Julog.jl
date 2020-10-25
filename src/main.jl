@@ -116,7 +116,7 @@ function unify(src::Term, dst::Term,
                 success = false; break
             end
             # "Yes: pushing args onto stack"
-            stack = append!(stack, collect(zip(src.args, dst.args)))
+            stack = append!(stack, zip(src.args, dst.args))
         else
             # Reaches here if one term is compound and the other is constant
             push!(deferred, (src, dst)) # Defer potential evaluations

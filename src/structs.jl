@@ -24,7 +24,7 @@ struct Clause
 end
 
 "Substitution mapping from variables to terms."
-Subst = Dict{Var,Term}
+const Subst = Dict{Var,Term}
 
 "Check if two terms are exactly equal."
 Base.:(==)(t1::Term, t2::Term) = false

@@ -49,11 +49,19 @@ function substitute(term::Compound, var::Var, val::Term)
 end
 
 "Apply substitution to a term."
-function substitute(term::Term, subst::Subst)
-    for (var, val) in subst
-        term = substitute(term, var, val)
+substitute(term::Term, subst::Subst) = error("Not implemented.")
+substitute(term::Const, subst::Subst) = term
+substitute(term::Var, subst::Subst) = get(subst, term, term)
+function substitute(term::Compound, subst::Subst)
+    args, ident = nothing, true
+    for (i, a) in enumerate(term.args)
+        b = substitute(a, subst)
+        if ident && a !== b
+            args, ident = collect(term.args[1:i-1]), false
+        end
+        if !ident push!(args, b) end
     end
-    return term
+    return ident ? term : Compound(term.name, args)
 end
 
 "Compose two substitutions (s2 after s1)."
@@ -64,7 +72,7 @@ end
 
 "Compose two substitutions (s2 after s1), modifying s1 in place."
 function compose!(s1::Subst, s2::Subst)
-    for (var, val) in s1 s1[var] = substitute(val, s2) end
+    map!(v -> substitute(v, s2), values(s1))
     for (var, val) in s2 get!(s1, var, val) end
     return s1
 end
@@ -85,13 +93,13 @@ freshen!(t::Compound, vmap::Subst) =
 "Check whether a term has a matching subterm."
 function has_subterm(term::Term, subterm::Term)
     if !isnothing(unify(term, subterm)) return true end
-    return any([has_subterm(arg, subterm) for arg in get_args(term)])
+    return any(has_subterm(arg, subterm) for arg in get_args(term))
 end
 
 "Find all matching subterms in a term."
 function find_subterms(term::Term, subterm::Term)
     init = !isnothing(unify(term, subterm)) ? Term[term] : Term[]
-    subterms = [find_subterms(a, subterm) for a in get_args(term)]
+    subterms = (find_subterms(a, subterm) for a in get_args(term))
     return reduce(vcat, subterms; init=init)
 end
 
@@ -145,7 +153,7 @@ function to_nnf(term::Compound)
         elseif inner.name in [true, false]
             term = Const(!inner.name)
         elseif inner.name in [:and, :or]
-            args = to_nnf.([@julog(not(:a)) for a in inner.args])
+            args = to_nnf.(@julog(not(:a)) for a in inner.args)
             term = Compound(inner.name == :and ? :or : :and, args)
         end
     else
@@ -189,7 +197,7 @@ function to_dnf(term::Compound)
     if !(term.name in [:and, :or]) return @julog or(and(:term)) end
     subterms = to_dnf.(term.args)
     if term.name == :or
-        args = foldl(vcat, [a.args for a in subterms]; init=Compound[])
+        args = foldl(vcat, (a.args for a in subterms); init=Compound[])
         term = Compound(:or, args)
     elseif term.name == :and
         stack = Compound[@julog(and())]
