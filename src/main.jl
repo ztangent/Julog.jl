@@ -360,18 +360,18 @@ function resolve(goals::Vector{<:Term}, clauses::ClauseTable; options...)
             continue
         end
         # Substitute and freshen variables in term
-        term, vmap = freshen(substitute(term, goal.env))
+        vmap = Subst()
+        term = freshen!(substitute(term, goal.env), vmap)
         # Iterate across clause set with matching heads
         matched_clauses = retrieve_clauses(clauses, term, funcs)
         matched = false
         for c in matched_clauses
             # If term unifies with head of a clause, add it as a subgoal
             unifier = unify(term, c.head, occurs_check, funcs)
-            if !isnothing(unifier)
-                child = GoalTree(c.head, goal, copy(c.body), 1, unifier, vmap)
-                push!(queue, child)
-                matched = true
-            end
+            if isnothing(unifier) continue end
+            child = GoalTree(c.head, goal, copy(c.body), 1, unifier, vmap)
+            push!(queue, child)
+            matched = true
         end
         if !matched @debug string("Failed, no matching clauses.") end
     end

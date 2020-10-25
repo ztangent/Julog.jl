@@ -45,12 +45,8 @@ end
 
 "Compose two substitutions (s2 after s1), modifying s1 in place."
 function compose!(s1::Subst, s2::Subst)
-    for (var, val) in s1
-        s1[var] = substitute(val, s2)
-    end
-    for (var, val) in s2
-        if !(var in keys(s1)) s1[var] = val end
-    end
+    for (var, val) in s1 s1[var] = substitute(val, s2) end
+    for (var, val) in s2 get!(s1, var, val) end
     return s1
 end
 
@@ -60,7 +56,12 @@ function freshen(term::Term, vars::Set{Var})
     term = substitute(term, vmap)
     return term, vmap
 end
-freshen(term::Term) = freshen(term, get_vars(term))
+freshen(t::Term) = freshen!(t, Subst())
+
+freshen!(t::Const, vmap::Subst) = t
+freshen!(t::Var, vmap::Subst) = get!(vmap, t, Var(gensym(t.name)))
+freshen!(t::Compound, vmap::Subst) =
+    Compound(t.name, Term[freshen!(a, vmap) for a in t.args])
 
 "Check whether a term has a matching subterm."
 function has_subterm(term::Term, subterm::Term)
