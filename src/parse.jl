@@ -1,5 +1,5 @@
 "Parse Julog terms using Prolog-like syntax."
-function parse_term(expr)
+function parse_term(expr, esc=esc)
     if isa(expr, Union{String,Number,Enum,Bool})
         # Strings, numbers, enums and bools are automatically constants
         return :(Const($expr))
@@ -40,12 +40,12 @@ function parse_term(expr)
 end
 
 "Parse arguments of vector using Prolog-style list syntax."
-function parse_list(args)
+function parse_list(args, esc=esc)
     if (length(args) > 0 && isa(args[end], Expr) &&
         args[end].head == :call && args[end].args[1] == :|)
         # Handle [... | Tail] syntax for last element
-        tail = parse_term(args[end].args[3])
-        pretail = parse_term(args[end].args[2])
+        tail = parse_term(args[end].args[3], esc)
+        pretail = parse_term(args[end].args[2], esc)
         tail = :(Compound(:cons, [$pretail, $tail]))
         args = args[1:end-1]
     else
@@ -53,26 +53,27 @@ function parse_list(args)
         tail = :(Compound(:cend, []))
     end
     # Recursively build list using :cons
-    elts = [parse_term(a) for a in args]
-    for e in reverse(elts)
+    for a in Iterators.reverse(args)
+        e = parse_term(a, esc)
         tail = :(Compound(:cons, [$e, $tail]))
     end
     return tail
 end
 
 "Parse body of Julog clause using Prolog-like syntax, with '&' replacing ','."
-function parse_body(expr)
+function parse_body(expr, esc=esc)
     if expr == true
         return []
     elseif isa(expr, Symbol) || isa(expr, QuoteNode) ||
            isa(expr, Expr) && expr.head in [:tuple, :vect, :$]
-        return [parse_term(expr)]
+        return [parse_term(expr, esc)]
     elseif isa(expr, Expr) && expr.head == :call
         if expr.args[1] == :&
             # '&' is left-associative, so we descend the parse tree accordingly
-            return [parse_body(expr.args[2]); parse_term(expr.args[3])]
+            return [parse_body(expr.args[2], esc);
+                    parse_term(expr.args[3], esc)]
         else
-            return [parse_term(expr)]
+            return [parse_term(expr, esc)]
         end
     else
         dump(expr)
@@ -80,31 +81,34 @@ function parse_body(expr)
     end
 end
 
-"Parse Julog expression using Prolog-like syntax. '<<=' replaces ':-' in clauses."
-function parse_julog(expr)
+"""
+Parse Julog expression using Prolog-like syntax. Set `esc` to `identity` to
+avoid unnecessary escaping.
+"""
+function parse_julog(expr, esc=esc)
     if !isa(expr, Expr)
-        return parse_term(expr)
+        return parse_term(expr, esc)
     elseif expr.head == :<<=
-        head = parse_term(expr.args[1])
-        body = parse_body(expr.args[2])
+        head = parse_term(expr.args[1], esc)
+        body = parse_body(expr.args[2], esc)
         return :(Clause($head, [$(body...)]))
     elseif expr.head == Symbol("'")
-        head = parse_term(expr.args[1])
+        head = parse_term(expr.args[1], esc)
         return :(Clause($head, []))
     elseif expr.head == :vect
-        exprs = [parse_julog(a) for a in expr.args]
+        exprs = [parse_julog(a, esc) for a in expr.args]
         return :([$(exprs...)])
     elseif expr.head == :ref && expr.args[1] == :Clause
-        exprs = [parse_julog(a) for a in expr.args[2:end]]
+        exprs = [parse_julog(a, esc) for a in expr.args[2:end]]
         return :(Clause[$(exprs...)])
     elseif expr.head == :ref && expr.args[1] in [:Term, :Const, :Var, :Compound]
         ty = expr.args[1]
-        exprs = [parse_term(a) for a in expr.args[2:end]]
+        exprs = [parse_term(a, esc) for a in expr.args[2:end]]
         return :($ty[$(exprs...)])
     elseif expr.head == :ref && expr.args[1] == :list
-        return parse_list(expr.args[2:end])
+        return parse_list(expr.args[2:end], esc)
     else
-        return parse_term(expr)
+        return parse_term(expr, esc)
     end
 end
 
