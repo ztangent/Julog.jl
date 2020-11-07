@@ -19,7 +19,7 @@ function parse_term(expr, esc=esc)
         return :(Const($(esc(expr))))
     elseif isa(expr, Expr) && expr.head == :vect
         # Parse vector as Prolog style list
-        return parse_list(expr.args)
+        return parse_list(expr.args, esc)
     elseif isa(expr, Expr) && expr.head == :$
         # Evaluate interpolated expression as Const within scope of caller
         val = expr.args[1]
@@ -27,7 +27,7 @@ function parse_term(expr, esc=esc)
     elseif isa(expr, Expr) && expr.head == :call
         # A compound term comprises its name (functor) and arguments
         name = esc(Meta.quot(expr.args[1]))
-        args = [parse_term(e) for e in expr.args[2:end]]
+        args = [parse_term(e, esc) for e in expr.args[2:end]]
         return :(Compound($name, [$(args...)]))
     elseif isa(expr, QuoteNode)
         # Evaluate quoted expression within scope of caller
