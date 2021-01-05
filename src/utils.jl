@@ -247,7 +247,7 @@ deuniversalize(c::Clause, clauses::Vector{Clause}) =
     Clause(c.head, [deuniversalize(t, clauses) for t in c.body])
 
 "Nested dictionary to store indexed clauses."
-ClauseTable = Dict{Symbol,Dict{Symbol,Vector{Clause}}}
+const ClauseTable = Dict{Symbol,Dict{Symbol,Vector{Clause}}}
 
 "Insert clauses into indexed table for efficient look-up."
 function insert_clauses!(table::ClauseTable, clauses::Vector{Clause})

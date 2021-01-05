@@ -32,7 +32,7 @@ Base.:(==)(t1::Const, t2::Const) = t1.name == t2.name
 Base.:(==)(t1::Var, t2::Var) = t1.name == t2.name
 Base.:(==)(t1::Compound, t2::Compound) =
     (t1.name == t2.name && length(t1.args) == length(t2.args) &&
-            all([a1 == a2 for (a1, a2) in zip(t1.args, t2.args)]))
+            all(a1 == a2 for (a1, a2) in zip(t1.args, t2.args)))
 
 "Compute hash of Julog term from name and arguments."
 Base.hash(t::Term, h::UInt) = error("Not implemented.")
@@ -43,7 +43,7 @@ Base.hash(t::Compound, h::UInt) = hash(t.name, hash(Tuple(t.args), h))
 "Check if two clauses are exactly equal."
 Base.:(==)(c1::Clause, c2::Clause) =
     (c1.head == c2.head && length(c1.body) == length(c2.body) &&
-     all([t1 == t2 for (t1, t2) in zip(c1.body, c2.body)]))
+     all(t1 == t2 for (t1, t2) in zip(c1.body, c2.body)))
 
 "Compute hash of Julog clause from head and body."
 Base.hash(c::Clause, h::UInt) = hash(c.head, hash(Tuple(c.body), h))
