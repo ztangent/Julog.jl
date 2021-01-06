@@ -90,6 +90,12 @@ freshen!(t::Var, vmap::Subst) = get!(vmap, t, Var(gensym(t.name)))
 freshen!(t::Compound, vmap::Subst) =
     Compound(t.name, Term[freshen!(a, vmap) for a in t.args])
 
+freshen!(t::Const, vmap::Subst, vcount::Ref{UInt}) = t
+freshen!(t::Var, vmap::Subst, vcount::Ref{UInt}) =
+    get!(vmap, t, Var(vcount[] += 1))
+freshen!(t::Compound, vmap::Subst, vcount::Ref{UInt}) =
+    Compound(t.name, Term[freshen!(a, vmap, vcount) for a in t.args])
+
 "Check whether a term has a matching subterm."
 function has_subterm(term::Term, subterm::Term)
     if !isnothing(unify(term, subterm)) return true end

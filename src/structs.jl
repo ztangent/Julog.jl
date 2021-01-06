@@ -8,7 +8,7 @@ end
 
 "Julog variables."
 struct Var <: Term
-    name::Symbol
+    name::Union{Symbol,UInt}
 end
 
 "Julog compound terms (e.g. )."

@@ -143,6 +143,7 @@ end
 function handle_builtins!(queue, clauses, goal, term; options...)
     funcs = get(options, :funcs, Dict())
     occurs_check = get(options, :occurs_check, false)
+    vcount = get(options, :vcount, Ref(UInt(0)))
     if term.name == true
         return true
     elseif term.name == false
@@ -201,13 +202,13 @@ function handle_builtins!(queue, clauses, goal, term; options...)
         # Try to resolve negated predicate, return true upon failure
         neg_goal = term.args[1]
         sat, _ = resolve(Term[neg_goal], clauses; options...,
-                         env=copy(goal.env), mode=:any)
+                         vcount=vcount, env=copy(goal.env), mode=:any)
         return !sat # Success if no proof is found
     elseif term.name == :exists
         # exists(Cond, Body) holds if Body holds for at least 1 binding of Cond
         cond, body = term.args
         sat, subst = resolve(Term[cond, body], clauses; options...,
-                             env=copy(goal.env), mode=:any)
+                             vcount=vcount, env=copy(goal.env), mode=:any)
         # Update variable bindings if satisfied
         goal.env = sat ? compose!(goal.env, subst[1]) : goal.env
         return sat
@@ -222,7 +223,7 @@ function handle_builtins!(queue, clauses, goal, term; options...)
         # imply(Cond, Body) holds if or(not(Cond), Body) holds
         cond, body = term.args
         sat, _ = resolve(Term[cond], clauses; options...,
-                         env=copy(goal.env), mode=:any)
+                         vcount=vcount, env=copy(goal.env), mode=:any)
         # Return true if Cond does not hold
         if !sat return true end
         # Otherwise replace original term with [Cond, Body], return true
@@ -240,7 +241,7 @@ function handle_builtins!(queue, clauses, goal, term; options...)
         # Find list of all cond matches, substituted into template
         template, cond, list = term.args
         _, subst = resolve(Term[cond], clauses; options...,
-                           env=copy(goal.env), mode=:all)
+                           vcount=vcount, env=copy(goal.env), mode=:all)
         matches = to_term_list([substitute(template, s) for s in subst])
         unifier = unify(list, matches, occurs_check, funcs)
         if isnothing(unifier) return false end
@@ -250,7 +251,7 @@ function handle_builtins!(queue, clauses, goal, term; options...)
         # Count number of ways to prove the condition
         cond, count = term.args
         _, subst = resolve(Term[cond], clauses; options...,
-                           env=copy(goal.env), mode=:all)
+                           vcount=vcount, env=copy(goal.env), mode=:all)
         unifier = unify(count, Const(length(subst)), occurs_check, funcs)
         if isnothing(unifier) return false end
         compose!(goal.env, unifier) # Update variable bindings if satisfied
@@ -292,6 +293,7 @@ function resolve(goals::Vector{<:Term}, clauses::ClauseTable; options...)
     funcs = get(options, :funcs, Dict())
     mode = get(options, :mode, :all)
     search = get(options, :search, :bfs)
+    vcount = get(options, :vcount, Ref(UInt(0)))
     # Construct top level goal and put it on the queue
     queue = [GoalTree(Const(false), nothing, Vector{Term}(goals), 1, env, Subst())]
     subst = []
@@ -341,7 +343,8 @@ function resolve(goals::Vector{<:Term}, clauses::ClauseTable; options...)
         @debug string("Subgoal: ", term)
         # Handle built-in special terms
         if term.name in builtins || term.name in keys(funcs)
-            success = handle_builtins!(queue, clauses, goal, term; options...)
+            success = handle_builtins!(queue, clauses, goal, term;
+                                       vcount=vcount, options...)
             # If successful, go to next subgoal, otherwise skip to next goal
             if success
                 @debug string("Done, returning to parent.")
@@ -352,7 +355,7 @@ function resolve(goals::Vector{<:Term}, clauses::ClauseTable; options...)
         end
         # Substitute and freshen variables in term
         vmap = Subst()
-        term = freshen!(substitute(term, goal.env), vmap)
+        term = freshen!(substitute(term, goal.env), vmap, vcount)
         # Iterate across clause set with matching heads
         matched_clauses = retrieve_clauses(clauses, term, funcs)
         matched = false
