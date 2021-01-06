@@ -289,11 +289,11 @@ end
 function resolve(goals::Vector{<:Term}, clauses::ClauseTable; options...)
     # Unpack options
     env = Subst(get(options, :env, []))
-    occurs_check = get(options, :occurs_check, false)
-    funcs = get(options, :funcs, Dict())
-    mode = get(options, :mode, :all)
-    search = get(options, :search, :bfs)
-    vcount = get(options, :vcount, Ref(UInt(0)))
+    occurs_check = get(options, :occurs_check, false)::Bool
+    funcs = get(options, :funcs, Dict())::Dict
+    mode = get(options, :mode, :all)::Symbol
+    search = get(options, :search, :bfs)::Symbol
+    vcount = get(options, :vcount, Ref(UInt(0)))::Ref{UInt}
     # Construct top level goal and put it on the queue
     queue = [GoalTree(Const(false), nothing, Vector{Term}(goals), 1, env, Subst())]
     subst = []
