@@ -77,12 +77,12 @@ Unifies src with dst and returns a dictionary of any substitutions needed.
 """
 function unify(src::Term, dst::Term,
                occurs_check::Bool=true, funcs::Dict=Dict())
-    stack = Tuple{Term, Term}[(src, dst)]
-    deferred = Tuple{Term, Term}[]
+    src_stack, dst_stack = Term[src], Term[dst]
+    src_defer, dst_defer = Term[], Term[]
     subst = Subst()
     success = true
-    while length(stack) > 0
-        (src, dst) = pop!(stack)
+    while length(src_stack) > 0
+        src, dst = pop!(src_stack), pop!(dst_stack)
         # Unify $src with $dst
         if isa(src, Const) && isa(dst, Const)
             if src.name in keys(funcs) src = Const(funcs[src.name]) end
@@ -99,16 +99,20 @@ function unify(src::Term, dst::Term,
                 success = false; break
             end
             # Replace src with dst in stack
-            for (i, (s, d)) in enumerate(stack)
-                ss, dd = substitute(s, src, dst), substitute(d, src, dst)
-                if (s !== ss || d !== dd) stack[i] = (ss, dd) end
+            for i in 1:length(src_stack)
+                s, d = src_stack[i], dst_stack[i]
+                ss = substitute(s, src, dst)
+                if s !== ss src_stack[i] = ss end
+                dd = substitute(d, src, dst)
+                if d !== dd dst_stack[i] = dd end
             end
             # Replace src with dst in substitution values
             map!(v -> substitute(v, src, dst), values(subst))
             # Add substitution of src to dst
             subst[src] = dst
         elseif isa(dst, Var) # "Swap $dst and $src"
-            push!(stack, (dst, src))
+            push!(src_stack, dst)
+            push!(dst_stack, src)
         elseif isa(src, Compound) && isa(dst, Compound)
             if src.name != dst.name # "No: diff functors"
                 success = false; break
@@ -116,15 +120,17 @@ function unify(src::Term, dst::Term,
                 success = false; break
             end
             # "Yes: pushing args onto stack"
-            stack = append!(stack, zip(src.args, dst.args))
+            append!(src_stack, src.args)
+            append!(dst_stack, dst.args)
         else
             # Reaches here if one term is compound and the other is constant
-            push!(deferred, (src, dst)) # Defer potential evaluations
+            push!(src_defer, src)
+            push!(dst_defer, dst)
         end
     end
     # Try evaluating deferred Const vs Compound comparisons
-    while length(deferred) > 0
-        (src, dst) = pop!(deferred)
+    while length(src_defer) > 0
+        src, dst = pop!(src_defer), pop!(dst_defer)
         src, dst = eval_term(src, subst, funcs), eval_term(dst, subst, funcs)
         if src != dst # "No: cannot unify $src and $dst after evaluation"
             success = false; break
