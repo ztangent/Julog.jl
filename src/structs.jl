@@ -62,6 +62,10 @@ function Base.show(io::IO, t::Term)
     print(io, t.name)
 end
 
+function Base.show(io::IO, t::Var)
+    (t.name isa UInt) ? print(io, "#", t.name) : print(io, t.name)
+end
+
 function Base.show(io::IO, t::Compound)
     if t.name == :cons && length(t.args) == 2
         # Handle lists separately

@@ -360,6 +360,8 @@ function resolve(goals::Vector{<:Term}, clauses::ClauseTable; options...)
         matched_clauses = retrieve_clauses(clauses, term, funcs)
         matched = false
         for c in matched_clauses
+            # Freshen variables in clause
+            c = freshen!(c, Subst(), vcount)
             # If term unifies with head of a clause, add it as a subgoal
             unifier = unify(term, c.head, occurs_check, funcs)
             if isnothing(unifier) continue end

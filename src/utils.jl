@@ -77,24 +77,38 @@ function compose!(s1::Subst, s2::Subst)
     return s1
 end
 
-"Replace variables in a term with fresh names."
+"Replace variables in a term or clause with fresh names."
 function freshen(term::Term, vars::Set{Var})
     vmap = Subst(v => Var(gensym(v.name)) for v in vars)
     term = substitute(term, vmap)
     return term, vmap
 end
+
+function freshen(clause::Clause, vars::Set{Var})
+    vmap = Subst(v => Var(gensym(v.name)) for v in vars)
+    clause = Clause(substitute(clause.head, vmap),
+                    Term[substitute(t, vmap) for t in clause.body])
+    return clause, vmap
+end
+
 freshen(t::Term) = freshen!(t, Subst())
+freshen(c::Clause) = freshen!(c, Subst())
 
 freshen!(t::Const, vmap::Subst) = t
 freshen!(t::Var, vmap::Subst) = get!(vmap, t, Var(gensym(t.name)))
 freshen!(t::Compound, vmap::Subst) =
     Compound(t.name, Term[freshen!(a, vmap) for a in t.args])
+freshen!(c::Clause, vmap::Subst) =
+    Clause(freshen!(c.head, vmap), Term[freshen!(t, vmap) for t in c.body])
 
 freshen!(t::Const, vmap::Subst, vcount::Ref{UInt}) = t
 freshen!(t::Var, vmap::Subst, vcount::Ref{UInt}) =
     get!(vmap, t, Var(vcount[] += 1))
 freshen!(t::Compound, vmap::Subst, vcount::Ref{UInt}) =
     Compound(t.name, Term[freshen!(a, vmap, vcount) for a in t.args])
+freshen!(c::Clause, vmap::Subst, vcount::Ref{UInt}) =
+    Clause(freshen!(c.head, vmap, vcount),
+           Term[freshen!(t, vmap, vcount) for t in c.body])
 
 "Check whether a term has a matching subterm."
 function has_subterm(term::Term, subterm::Term)
