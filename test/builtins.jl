@@ -1,4 +1,4 @@
-# Test handling of built in predicates
+@testset "Built-in predicates" begin
 
 # Test handling of and/N and or/N
 clauses = @julog [
@@ -133,3 +133,5 @@ clauses = @julog [
 @test @varsub({B => y}) in resolve(@julog(metatest1(test, x, B)), clauses)[2]
 @test @varsub({P => test}) in resolve(@julog(metatest2(P, x, y)), clauses)[2]
 @test @varsub({B => y}) in resolve(@julog(metatest2(test, x, B)), clauses)[2]
+
+end

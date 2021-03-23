@@ -1,4 +1,5 @@
-# Test evaluation of custom functions
+@testset "Custom function evaluation" begin
+
 funcs = Dict()
 funcs[:pi] = pi
 funcs[:sin] = sin
@@ -38,3 +39,5 @@ clauses = @julog [
 @test resolve(@julog(on_circ(5, pair(5*sin(1), 5*cos(1)))), clauses, funcs=funcs)[1] == true
 # Is the point (10, 10) on the line X=Y?
 @test resolve(@julog(on_diag(10, 10)), clauses, funcs=funcs)[1] == true
+
+end

@@ -1,4 +1,5 @@
-# Test conversions ta various normal forms
+@testset "Logical form conversions" begin
+
 @test to_nnf(@julog(and(a))) == @julog a
 @test to_nnf(@julog(true => not(and(not(!a), b, or(not(c), false))))) ==
     @julog(or(not(a), not(b), c))
@@ -52,3 +53,5 @@ regularized = @julog [
 ]
 
 @test regularize_clauses(clauses) == regularized
+
+end

@@ -1,3 +1,5 @@
+@testset "Math operators" begin
+
 # Test built-in math and comparison operators
 @test resolve(@julog(1 == 1), Clause[])[1] == true
 @test resolve(@julog(1 == 2), Clause[])[1] == false
@@ -31,3 +33,5 @@ clauses = @julog [
 @test @varsub({Y => 3}) in resolve(@julog(add(2, Y, 5)), clauses)[2]
 # Using is/2 doesn't allow us ask for all the ways to add to 5
 @test resolve(@julog(add(X, Y, 5)), clauses)[1] == false
+
+end

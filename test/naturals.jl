@@ -1,3 +1,5 @@
+@testset "Natural numbers (example)" begin
+
 # Test the natural numbers and addition
 clauses = @julog [
     nat(0) <<= true,
@@ -25,3 +27,5 @@ subst = Set(subst)
 @test @varsub({A => s(0), B => s(s(0))}) in subst
 @test @varsub({A => s(s(0)), B => s(0)}) in subst
 @test @varsub({A => s(s(s(0))), B => 0}) in subst
+
+end

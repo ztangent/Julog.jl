@@ -1,4 +1,4 @@
-# Test conversion to and from Prolog
+@testset "Prolog syntax conversion" begin
 
 pl_input = @prolog """
     member(X, [X | Y]).
@@ -40,3 +40,5 @@ dinosaur(A) :- member(A, [archaeopteryx, stegosaurus, triceratops]).
 """
 
 @test write_prolog(pl_input) == pl_output
+
+end

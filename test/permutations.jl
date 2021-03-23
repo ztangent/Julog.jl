@@ -1,4 +1,4 @@
-# Test permutation generation
+@testset "Permutation generation (example)" begin
 
 clauses = @julog [
     permutations(T) <<=
@@ -18,3 +18,5 @@ sat, subst = resolve(@julog(permutations(T)),clauses)
 @test @varsub({T => [2, 3, 1]}) in subst
 @test @varsub({T => [3, 1, 2]}) in subst
 @test @varsub({T => [3, 2, 1]}) in subst
+
+end

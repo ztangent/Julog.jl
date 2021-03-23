@@ -1,3 +1,5 @@
+@testset "Unification" begin
+
 # Test unification of nested terms
 subst = unify(@julog(f(g(X, h(X, b)), Z)), @julog(f(g(a, Z), Y)))
 @test subst == @varsub {X => a, Z => h(a, b), Y => h(a, b)}
@@ -31,3 +33,5 @@ subst = unify(@julog(f(g(X, h(X, b)), Z)), @julog(f(g(a, Z), Y)))
 
 subterms = find_subterms(@julog(foo(bar(1), bar(bar(2)))), @julog(bar(X)))
 @test Set(subterms) == Set(@julog(Term[bar(1), bar(bar(2)), bar(2)]))
+
+end

@@ -1,4 +1,4 @@
-# Test that parsing works correctly
+@testset "Parsing" begin
 
 # Parsing of terms
 @test Const(:atom) == @julog atom
@@ -41,3 +41,5 @@ s1 = Subst(Var(:A) => Const(a), Var(:B) => b)
 s2 = @varsub {A => alice, B => bob}
 s3 = @varsub {A => $a, B => :b}
 @test s1 == s2 == s3
+
+end

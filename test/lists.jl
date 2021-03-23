@@ -1,3 +1,5 @@
+@testset "List manipulation" begin
+
 # Test list parsing
 @test @julog(cons(x, cons(y, cons(z, cend())))) == @julog(list[x, y, z])
 @test @julog(cons(x, cons(y, cons(z, W)))) == @julog(list[x, y, z | W])
@@ -28,3 +30,5 @@ clauses = @julog [
 @test resolve(@julog(reverse([d,e,l,e,v,e,l,e,d], [d,e,l,e,v,e,l,e,d])), clauses)[1] == true
 # Not a palindrome (but yes an ambigram)
 @test resolve(@julog(reverse([p,a,s,s,e,d], [p,a,s,s,e,d])), clauses)[1] == false
+
+end

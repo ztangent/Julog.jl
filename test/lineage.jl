@@ -1,3 +1,5 @@
+@testset "Zen lineage (example)" begin
+
 # Test composition and transitive relations using the traditional Zen lineage
 clauses = @julog [
     ancestor(sakyamuni, bodhidharma) <<= true,
@@ -40,3 +42,5 @@ table = insert_clauses!(table, clauses[4:end])
 @test table == index_clauses(clauses)
 subtract_clauses!(table, clauses[5:end])
 @test Set(deindex_clauses(table)) == Set(clauses[1:4])
+
+end
