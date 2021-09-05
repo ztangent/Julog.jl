@@ -18,7 +18,7 @@ const comp_ops = Set([:(==), :<=, :>=, :<, :>, :(!=)])
 "Built-in operators."
 const ops = union(math_ops, comp_ops)
 "Built-in functions."
-const default_funcs = Dict(op => (args...) -> eval(op)(args...) for op in ops)
+const default_funcs = Dict(op => eval(op) for op in ops)
 "Built-in logical connectives."
 const logicals = Set([true, false, :and, :or, :not, :!,
                       :exists, :forall, :imply, :(=>)])
