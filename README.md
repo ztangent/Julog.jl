@@ -182,6 +182,20 @@ funcs[:lookup] = Dict((:foo,) => "hello", (:bar,) => "world")
 
 See [`test/custom_funcs.jl`](test/custom_funcs.jl) for more examples.
 
+Unlike Prolog, Julog also supports [extended unification](https://www.sciencedirect.com/science/article/pii/0743106687900021) via the evaluation of functional terms. In other words, the following terms unify:
+```julia
+julia> unify(@julog(f(X, X*Y, Y)), @julog(f(4, 20, 5)))
+Dict{Var, Term} with 2 entries:
+  Y => 5
+  X => 4
+```
+
+However, the extent of such unification is limited. If variables used within a functional expression are not sufficiently instantiated at the time of evaluation, evaluation will be partial, causing unification to fail:
+```julia
+julia> unify(@julog(f(X, X*Y, Y)), @julog(f(X, 20, 5))) === nothing
+true
+```
+
 ## Built-in Predicates
 
 `Julog` provides a number of built-in predicates for control-flow and convenience. Some of these are also part of ISO Prolog, but may not share the exact same behavior.
@@ -205,8 +219,7 @@ See [`test/builtins.jl`](test/builtins.jl) for usage examples.
 
 ## Conversion Utilities
 
-Julog provides some support for converting and manipulating logical formulae,
-for example, conversion to negation, conjunctive, or disjunctive normal form:
+Julog provides some support for converting and manipulating logical formulae, for example, conversion to negation, conjunctive, or disjunctive normal form:
 ```julia
 julia> formula = @julog and(not(and(a, not(b))), c)
 julia> to_nnf(formula)
@@ -217,17 +230,11 @@ julia> to_dnf(formula)
 or(and(not(a), c), and(b, c))
 ```
 
-This can be useful for downstream applications, such as classical planning.
-Note however that these conversions do not handle the implicit existential
-quantification in Prolog semantics, and hence are not guaranteed to preserve equivalence when free variables are involved. In particular, care should be
-taken with negations of conjunctions of unbound predicates. For example,
-the following expression states that "All ravens are black.":
+This can be useful for downstream applications, such as classical planning. Note however that these conversions do not handle the implicit existential quantification in Prolog semantics, and hence are not guaranteed to preserve equivalence when free variables are involved. In particular, care should be taken with negations of conjunctions of unbound predicates. For example, the following expression states that "All ravens are black.":
 ```julia
 @julog not(and(raven(X), not(black(X))))
 ```
-However, `to_dnf` doesn't handle the implied existential quantifier over `X`,
-and gives the non-equivalent statement "Either there are no ravens, or there
-exist black things, or both.":
+However, `to_dnf` doesn't handle the implied existential quantifier over `X`, and gives the non-equivalent statement "Either there are no ravens, or there exist black things, or both.":
 ```julia
 @julog or(and(not(raven(X))), and(black(X)))
 ```
