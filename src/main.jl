@@ -38,15 +38,24 @@ Returns a term that is as fully evaluated as possible.
 - `funcs::Dict=Dict()`: Additional custom functions (e.g. custom math).
 """
 eval_term(term::Term, env::Subst, funcs::Dict=Dict()) = error("Not implemented")
-eval_term(term::Const, env::Subst, funcs::Dict=Dict()) =
-    term.name in keys(funcs) ? Const(funcs[term.name]) : term
 eval_term(term::Var, env::Subst, funcs::Dict=Dict()) =
     term in keys(env) ? eval_term(env[term], env, funcs) : term
+function eval_term(term::Const, env::Subst, funcs::Dict=Dict())
+    val = get(funcs, term.name, term)
+    if val === term
+        return val
+    elseif isa(val, Function)
+        return Const(val())
+    else
+        return Const(val)
+    end
+end
 function eval_term(term::Compound, env::Subst, funcs::Dict=Dict())
     args = Term[eval_term(a, env, funcs) for a in term.args]
-    funcs = length(funcs) > 0 ? merge(default_funcs, funcs) : default_funcs
-    if term.name in keys(funcs) && all(isa(a, Const) for a in args)
-        func = funcs[term.name]
+    func = get(funcs, term.name) do
+        get(default_funcs, term.name, nothing)
+    end
+    if func !== nothing && all(isa(a, Const) for a in args)
         if isa(func, Function)
             # Evaluate function if all arguments are fully evulated
             return Const(func((a.name for a in args)...))

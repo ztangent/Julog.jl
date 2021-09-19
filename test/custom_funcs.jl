@@ -2,6 +2,7 @@
 
 funcs = Dict()
 funcs[:pi] = pi
+funcs[:zero] = () -> 0
 funcs[:sin] = sin
 funcs[:cos] = cos
 funcs[:square] = x -> x * x
@@ -11,6 +12,7 @@ funcs[:fst] = tup -> tup[1]
 funcs[:snd] = tup -> tup[2]
 funcs[:fakesum] = Dict((1, 1) => 2, (2, 2) => 4)
 
+@test resolve(@julog(zero == 0), Clause[], funcs=funcs)[1] == true
 @test resolve(@julog(sin(pi / 2) == 1), Clause[], funcs=funcs)[1] == true
 @test resolve(@julog(cos(pi) == -1), Clause[], funcs=funcs)[1] == true
 @test resolve(@julog(square(5) == 25), Clause[], funcs=funcs)[1] == true
