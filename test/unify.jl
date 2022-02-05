@@ -1,5 +1,9 @@
 @testset "Unification" begin
 
+# Test unification of constant with zero-arity compound
+subst = unify(@julog(constant), @julog(constant()))
+@test subst == @varsub {}
+
 # Test unification of nested terms
 subst = unify(@julog(f(g(X, h(X, b)), Z)), @julog(f(g(a, Z), Y)))
 @test subst == @varsub {X => a, Z => h(a, b), Y => h(a, b)}

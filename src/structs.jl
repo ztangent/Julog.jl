@@ -30,6 +30,8 @@ const Subst = Dict{Var,Term}
 Base.:(==)(t1::Term, t2::Term) = false
 Base.:(==)(t1::Const, t2::Const) = t1.name == t2.name
 Base.:(==)(t1::Var, t2::Var) = t1.name == t2.name
+Base.:(==)(t1::Const, t2::Compound) = t1.name == t2.name && isempty(t2.args)
+Base.:(==)(t1::Compound, t2::Const) = t1.name == t2.name && isempty(t1.args)
 Base.:(==)(t1::Compound, t2::Compound) =
     (t1.name == t2.name && length(t1.args) == length(t2.args) &&
             all(a1 == a2 for (a1, a2) in zip(t1.args, t2.args)))
@@ -38,7 +40,8 @@ Base.:(==)(t1::Compound, t2::Compound) =
 Base.hash(t::Term, h::UInt) = error("Not implemented.")
 Base.hash(t::Const, h::UInt) = hash(t.name, h)
 Base.hash(t::Var, h::UInt) = hash(t.name, h)
-Base.hash(t::Compound, h::UInt) = hash(t.name, hash(Tuple(t.args), h))
+Base.hash(t::Compound, h::UInt) = isempty(t.args) ?
+    hash(t.name, h) : hash(t.name, hash(Tuple(t.args), h))
 
 "Check if two clauses are exactly equal."
 Base.:(==)(c1::Clause, c2::Clause) =
@@ -77,8 +80,9 @@ function Base.show(io::IO, t::Compound)
         else
             print(io, "[", repr(head), ", ", repr(tail)[2:end-1], "]")
         end
-    elseif t.name == :cend && length(t.args) == 0
-        print(io, "[]")
+    elseif isempty(t.args)
+        # Print zero-arity compounds as constants
+        t.name == :cend ? print(io, "[]") : print(io, t.name)
     else
         # Print compound term as "name(args...)"
         print(io, t.name, "(", join([repr(a) for a in t.args], ", ")..., ")")

@@ -94,58 +94,81 @@ function unify(src::Term, dst::Term,
         src, dst = pop!(src_stack), pop!(dst_stack)
         # Unify $src with $dst
         if isa(src, Const) && isa(dst, Const)
-            if src.name in keys(funcs) src = Const(funcs[src.name]) end
-            if dst.name in keys(funcs) dst = Const(funcs[dst.name]) end
-            if src.name == dst.name # "Yes: equal constants"
-                continue
-            else # "No: diff constants"
-                success = false; break
-            end
+            success = _unify!(src::Const, dst, funcs)
+            if !success break end
         elseif isa(src, Var)
-            if isa(dst, Var) && src.name == dst.name # "Yes: same variable"
-                continue
-            elseif occurs_check && occurs_in(src, dst) # "No: src occurs in dst"
-                success = false; break
-            end
-            # Replace src with dst in stack
-            for i in 1:length(src_stack)
-                s, d = src_stack[i], dst_stack[i]
-                ss = substitute(s, src, dst)
-                if s !== ss src_stack[i] = ss end
-                dd = substitute(d, src, dst)
-                if d !== dd dst_stack[i] = dd end
-            end
-            # Replace src with dst in substitution values
-            map!(v -> substitute(v, src, dst), values(subst))
-            # Add substitution of src to dst
-            subst[src] = dst
-        elseif isa(dst, Var) # "Swap $dst and $src"
-            push!(src_stack, dst)
-            push!(dst_stack, src)
+            success = _unify!(src::Var, dst, src_stack, dst_stack,
+                              subst, occurs_check)
+            if !success break end
+        elseif isa(dst, Var)
+            success = _unify!(dst::Var, src, dst_stack, src_stack,
+                              subst, occurs_check)
+            if !success break end
         elseif isa(src, Compound) && isa(dst, Compound)
-            if src.name != dst.name # "No: diff functors"
-                success = false; break
-            elseif length(src.args) != length(dst.args) # "No: diff arity"
-                success = false; break
-            end
-            # "Yes: pushing args onto stack"
-            append!(src_stack, src.args)
-            append!(dst_stack, dst.args)
-        else
-            # Reaches here if one term is compound and the other is constant
+            success = _unify!(src::Compound, dst, src_stack, dst_stack)
+            if !success break end
+        elseif isa(src, Const) && isempty(dst.args)
+            success = _unify!(src::Const, dst, funcs)
+            if !success break end
+        elseif isa(dst, Const) && isempty(src.args)
+            success = _unify!(dst::Const, src, funcs)
+            if !success break end
+        else # Reaches here if one term is compound and the other is constant
             push!(src_defer, src)
             push!(dst_defer, dst)
         end
     end
     # Try evaluating deferred Const vs Compound comparisons
-    while length(src_defer) > 0
-        src, dst = pop!(src_defer), pop!(dst_defer)
+    for (src, dst) in zip(src_defer, dst_defer)
         src, dst = eval_term(src, subst, funcs), eval_term(dst, subst, funcs)
         if src != dst # "No: cannot unify $src and $dst after evaluation"
             success = false; break
         end
     end
     return success ? subst : nothing
+end
+
+function _unify!(src::Const, dst::Term, funcs::Dict=Dict())
+     if src.name != dst.name
+         src_val = get(funcs, src.name, src.name)
+         dst_val = get(funcs, dst.name, dst.name)
+         return src_val == dst_val
+     end
+     return true
+end
+
+function _unify!(src::Var, dst::Term, src_stack, dst_stack,
+                 subst, occurs_check::Bool=true)
+    if isa(dst, Var) && src.name == dst.name # "Yes: same variable"
+        return true
+    elseif occurs_check && occurs_in(src, dst) # "No: src occurs in dst"
+        return false
+    end
+    # Replace src with dst in stack
+    for i in 1:length(src_stack)
+        s, d = src_stack[i], dst_stack[i]
+        ss = substitute(s, src, dst)
+        if s !== ss src_stack[i] = ss end
+        dd = substitute(d, src, dst)
+        if d !== dd dst_stack[i] = dd end
+    end
+    # Replace src with dst in substitution values
+    map!(v -> substitute(v, src, dst), values(subst))
+    # Add substitution of src to dst
+    subst[src] = dst
+    return true
+end
+
+function _unify!(src::Compound, dst::Term, src_stack, dst_stack)
+    if src.name != dst.name # "No: diff functors"
+        return false
+    elseif length(src.args) != length(dst.args) # "No: diff arity"
+        return false
+    end
+    # "Yes: pushing args onto stack"
+    append!(src_stack, src.args)
+    append!(dst_stack, dst.args)
+    return true
 end
 
 "Handle built-in predicates"
