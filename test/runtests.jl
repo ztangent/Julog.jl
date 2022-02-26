@@ -4,6 +4,7 @@ using Test
 include("parse.jl")
 include("unify.jl")
 include("builtins.jl")
+include("new_builtins.jl")
 include("math_ops.jl")
 include("lists.jl")
 include("custom_funcs.jl")

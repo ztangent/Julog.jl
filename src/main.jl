@@ -24,7 +24,7 @@ const logicals = Set([true, false, :and, :or, :not, :!,
                       :exists, :forall, :imply, :(=>)])
 "Built-in predicates with special handling during SLD resolution."
 const builtins = union(comp_ops, logicals,
-    Set([:is, :call, :unifies, :≐, :cut, :fail, :findall, :countall]))
+    Set([:is, :call, :unifies, :≐, :cut, :fail, :findall, :countall, :ground, :atom, :nonvar]))
 
 """
     eval_term(term, env[, funcs])
@@ -288,12 +288,23 @@ function handle_builtins!(queue, clauses, goal, term; options...)
         if isnothing(unifier) return false end
         compose!(goal.env, unifier) # Update variable bindings if satisfied
         return true
+    elseif term.name == :nonvar
+        return @inbounds !isvar(term.args[1])
+    elseif term.name == :ground
+        return @inbounds is_ground(term)
+    elseif term.name == :atom
+        return @inbounds atomic(term.args[1]) 
     elseif term.name in comp_ops || term.name in keys(funcs)
         result = eval_term(term, goal.env, funcs)
         return (isa(result, Const) && result.name == true)
     end
     return false
 end
+
+isvar(t) = false
+isvar(::Var) = true
+atomic(t) = true
+atomic(::Compound) = false
 
 """
     resolve(goals, clauses; <keyword arguments>)
