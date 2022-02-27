@@ -24,7 +24,8 @@ const logicals = Set([true, false, :and, :or, :not, :!,
                       :exists, :forall, :imply, :(=>)])
 "Built-in predicates with special handling during SLD resolution."
 const builtins = union(comp_ops, logicals,
-    Set([:is, :call, :unifies, :≐, :cut, :fail, :findall, :countall, :ground, :atom, :nonvar]))
+    Set([:is, :call, :unifies, :≐, :cut, :fail, :findall, :countall,
+        :ground, :atom, :nonvar, :arg, :functor]))
 
 """
     eval_term(term, env[, funcs])
@@ -183,8 +184,12 @@ function handle_builtins!(queue, clauses, goal, term; options...)
     elseif term.name == :call
         # Handle meta-call predicate
         pred, args = term.args[1], term.args[2:end]
-        if isa(pred, Var) pred = get(goal.env, pred, nothing) end
-        if isnothing(pred) error("$term not sufficiently instantiated.") end
+        if isa(pred, Var)
+            pred = get(goal.env, pred, nothing)
+        end
+        if isnothing(pred)
+            error("$term not sufficiently instantiated.")
+        end
         term = Compound(pred.name, [pred.args; args]) # Rewrite term
         goal.children[goal.active] = term # Replace term
         goal.active -= 1
@@ -193,7 +198,9 @@ function handle_builtins!(queue, clauses, goal, term; options...)
         # Handle is/2 predicate
         qn, ans = term.args[1], eval_term(term.args[2], goal.env, funcs)
         # Failure if RHS is insufficiently instantiated
-        if !isa(ans, Const) return false end
+        if !isa(ans, Const)
+            return false
+        end
         # LHS can either be a variable or evaluate to a constant
         if isa(qn, Var) && !(qn in keys(goal.env))
             # If LHS is a free variable, bind to RHS
@@ -213,9 +220,15 @@ function handle_builtins!(queue, clauses, goal, term; options...)
         term = substitute(term, goal.env)
         lhs, rhs = term.args[1], term.args[2]
         unifier = unify(lhs, rhs, occurs_check, funcs)
-        if isnothing(unifier) return false end
+        isnothing(unifier) && return false
         compose!(goal.env, unifier) # Update variable bindings if satisfied
         return true
+    elseif term.name == :arg
+        # arg(N, Term, Arg)
+        return arg(term; options...)
+    elseif term.name == :functor
+        # functor(f(a,b), f, 2).
+        return functor(term; goalenv=goal.env, occurs_check, funcs)
     elseif term.name == :and
         # Remove self and add all arguments as children to the goal, succeed
         splice!(goal.children, goal.active, term.args)
@@ -234,13 +247,13 @@ function handle_builtins!(queue, clauses, goal, term; options...)
         # Try to resolve negated predicate, return true upon failure
         neg_goal = term.args[1]
         sat, _ = resolve(Term[neg_goal], clauses; options...,
-                         vcount=vcount, env=copy(goal.env), mode=:any)
+            vcount = vcount, env = copy(goal.env), mode = :any)
         return !sat # Success if no proof is found
     elseif term.name == :exists
         # exists(Cond, Body) holds if Body holds for at least 1 binding of Cond
         cond, body = term.args
         sat, subst = resolve(Term[cond, body], clauses; options...,
-                             vcount=vcount, env=copy(goal.env), mode=:any)
+            vcount = vcount, env = copy(goal.env), mode = :any)
         # Update variable bindings if satisfied
         goal.env = sat ? compose!(goal.env, subst[1]) : goal.env
         return sat
@@ -255,9 +268,11 @@ function handle_builtins!(queue, clauses, goal, term; options...)
         # imply(Cond, Body) holds if or(not(Cond), Body) holds
         cond, body = term.args
         sat, _ = resolve(Term[cond], clauses; options...,
-                         vcount=vcount, env=copy(goal.env), mode=:any)
+            vcount = vcount, env = copy(goal.env), mode = :any)
         # Return true if Cond does not hold
-        if !sat return true end
+        if !sat
+            return true
+        end
         # Otherwise replace original term with [Cond, Body], return true
         splice!(goal.children, goal.active, [cond, body])
         goal.active -= 1
@@ -273,27 +288,31 @@ function handle_builtins!(queue, clauses, goal, term; options...)
         # Find list of all cond matches, substituted into template
         template, cond, list = term.args
         _, subst = resolve(Term[cond], clauses; options...,
-                           vcount=vcount, env=copy(goal.env), mode=:all)
+            vcount = vcount, env = copy(goal.env), mode = :all)
         matches = to_term_list([substitute(template, s) for s in subst])
         unifier = unify(list, matches, occurs_check, funcs)
-        if isnothing(unifier) return false end
+        if isnothing(unifier)
+            return false
+        end
         compose!(goal.env, unifier) # Update variable bindings if satisfied
         return true
     elseif term.name == :countall
         # Count number of ways to prove the condition
         cond, count = term.args
         _, subst = resolve(Term[cond], clauses; options...,
-                           vcount=vcount, env=copy(goal.env), mode=:all)
+            vcount = vcount, env = copy(goal.env), mode = :all)
         unifier = unify(count, Const(length(subst)), occurs_check, funcs)
-        if isnothing(unifier) return false end
-        compose!(goal.env, unifier) # Update variable bindings if satisfied
+        if isnothing(unifier)
+            return false
+        end
+        compose!(goal.env, unifier)
         return true
     elseif term.name == :nonvar
         return @inbounds !isvar(term.args[1])
     elseif term.name == :ground
         return @inbounds is_ground(term)
     elseif term.name == :atom
-        return @inbounds atomic(term.args[1]) 
+        return @inbounds atomic(term.args[1])
     elseif term.name in comp_ops || term.name in keys(funcs)
         result = eval_term(term, goal.env, funcs)
         return (isa(result, Const) && result.name == true)
@@ -301,10 +320,16 @@ function handle_builtins!(queue, clauses, goal, term; options...)
     return false
 end
 
-isvar(t) = false
-isvar(::Var) = true
-atomic(t) = true
-atomic(::Compound) = false
+function unifies(lhs, rhs; options...)
+    goalenv = get(options, :goalenv, Subst())
+    occurs_check = get(options, :occurs_check, false)
+    funcs = get(options, :funcs, Dict())
+    unifier = unify(lhs, rhs, occurs_check, funcs)
+    isnothing(unifier) && return false
+    compose!(goalenv, unifier) # Update variable bindings if satisfied
+    return true
+end
+
 
 """
     resolve(goals, clauses; <keyword arguments>)

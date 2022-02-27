@@ -26,6 +26,12 @@ is_ground(t::Const) = true
 is_ground(t::Var) = false
 is_ground(t::Compound) = all(is_ground(a) for a in t.args)
 
+"Check if a term is a Cons list"
+is_term_list(t::Term) = error("Not implemented.")
+is_term_list(t::Const) = true
+is_term_list(t::Var) = false
+is_term_list(t::Compound) = t.name == :cons
+
 "Check whether a variable appears in a term."
 occurs_in(v::Var, t::Term) = error("Not implemented.")
 occurs_in(v::Var, t::Const) = false
