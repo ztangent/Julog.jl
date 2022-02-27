@@ -36,8 +36,7 @@ function functor(term::Const, func, arity; options...)
     elseif arity isa Var
         return unifies(Const(0), arity; options...)
     else
-        (term == func && arity.name == 0) || return false
-        return true
+        return term == func && arity.name == 0
     end
     false
 end
