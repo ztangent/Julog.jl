@@ -103,7 +103,6 @@ univ(foo(hello, X), List) |- List = [foo, hello, X]
 univ(Term, [baz, foo(1)]) |- Term = baz(foo(1))
 """
 univ(a, b; options...) = false
-univ(::Var, ::Var, options...) = false
 
 # univ(foo(hello, X), List) |- List = [foo, hello, X]
 function univ(term::Compound, list::Var; options...)
