@@ -96,3 +96,27 @@ function arg(n::Int, vterm::Compound, varg; options...)
     end
     false
 end
+
+"""
+univ(Term, List)
+univ(foo(hello, X), List) |- List = [foo, hello, X]
+univ(Term, [baz, foo(1)]) |- Term = baz(foo(1))
+"""
+univ(a, b; options...) = false
+univ(::Var, ::Var, options...) = false
+
+# univ(foo(hello, X), List) |- List = [foo, hello, X]
+function univ(term::Compound, list::Var; options...)
+    head = Const(term.name)
+    length(term.args) == 0 && return false
+    li = [head; term.args] |> to_term_list
+    return unifies(li, list; options...)
+end
+
+# univ(Term, [baz, foo(1)]) |- Term = baz(foo(1))
+function univ(term::Var, list::Compound; options...)
+    list = to_julia_list(list)
+    length(list) >= 2 || return
+    func = Compound(first(list).name, list[2:end])
+    return unifies(func, term; options...)
+end

@@ -25,7 +25,7 @@ const logicals = Set([true, false, :and, :or, :not, :!,
 "Built-in predicates with special handling during SLD resolution."
 const builtins = union(comp_ops, logicals,
     Set([:is, :call, :unifies, :≐, :cut, :fail, :findall, :countall,
-        :ground, :atom, :nonvar, :arg, :functor]))
+        :ground, :atom, :nonvar, :arg, :functor, :univ]))
 
 """
     eval_term(term, env[, funcs])
@@ -229,6 +229,10 @@ function handle_builtins!(queue, clauses, goal, term; options...)
     elseif term.name == :functor
         # functor(f(a,b), f, 2).
         return functor(term; goalenv=goal.env, occurs_check, funcs)
+    elseif term.name == :univ
+        # univ/2
+        t, l = @inbounds term.args
+        return univ(t, l; goalenv=goal.env, occurs_check, funcs)
     elseif term.name == :and
         # Remove self and add all arguments as children to the goal, succeed
         splice!(goal.children, goal.active, term.args)
