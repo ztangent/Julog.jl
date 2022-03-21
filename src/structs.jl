@@ -17,8 +17,11 @@ struct Compound <: Term
     args::Vector{Term}
 end
 
+"Julog abstract type for clauses"
+abstract type AbstractClause end
+
 "Julog clauses are definite Horn clauses of the form [head] <<= [body]."
-struct Clause
+struct Clause <: AbstractClause
     head::Term
     body::Vector{Term}
 end

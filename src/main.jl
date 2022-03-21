@@ -314,7 +314,7 @@ SLD-resolution of goals with additional Prolog-like control flow.
   A function `f` should be stored as `funcs[:f] = f`
 - `search::Symbol=:bfs`: search either breadth (`:bfs`) or depth-first (`:dfs`)
 """
-function resolve(goals::Vector{<:Term}, clauses::Vector{Clause}; options...)
+function resolve(goals::Vector{<:Term}, clauses::Vector{<:AbstractClause}; options...)
     return resolve(goals, index_clauses(clauses); options...)
 end
 
@@ -407,7 +407,7 @@ function resolve(goals::Vector{<:Term}, clauses::ClauseTable; options...)
     return (length(subst) > 0), subst
 end
 
-resolve(goal::Term, clauses::Vector{Clause}; options...) =
+resolve(goal::Term, clauses::Vector{<:AbstractClause}; options...) =
     resolve(Term[goal], clauses; options...)
 
 resolve(goals::Vector{Clause}, clauses::Vector{Clause}; options...) =
@@ -416,16 +416,16 @@ resolve(goals::Vector{Clause}, clauses::Vector{Clause}; options...) =
 const bwd_chain = resolve
 
 "Return all facts derivable in `n` steps from the initial set of clauses."
-function derivations(clauses::Vector{Clause}, n::Real=1; options...)
+function derivations(clauses::Vector{<:AbstractClause}, n::Real=1; options...)
     rules = filter(c -> length(c.body) > 0, clauses)
     facts = filter(c -> length(c.body) == 0, clauses)
     return derivations(rules, facts, n; options...)
 end
 
-derivations(rules::Vector{Clause}, facts::Vector{Clause}, n::Real=1; options...) =
+derivations(rules::Vector{<:AbstractClause}, facts::Vector{Clause}, n::Real=1; options...) =
     derivations(rules, index_clauses(facts), n; options...)
 
-function derivations(rules::Vector{Clause}, facts::ClauseTable, n::Real=1;
+function derivations(rules::Vector{<:AbstractClause}, facts::ClauseTable, n::Real=1;
                      as_indexed::Bool=false, options...)
     step = 0
     n_facts = num_clauses(facts)
@@ -442,7 +442,7 @@ function derivations(rules::Vector{Clause}, facts::ClauseTable, n::Real=1;
 end
 
 "Iteratively add facts derivable from each rule."
-function derive_step(rules::Vector{Clause}, facts::ClauseTable; options...)
+function derive_step(rules::Vector{<:AbstractClause}, facts::ClauseTable; options...)
     # Iteratively add facts derivable from each rule
     derived = Term[]
     for r in rules
@@ -466,7 +466,7 @@ Derive goals via forward-chaining from the initial set of clauses.
 
 See `resolve` for other supported arguments.
 """
-function derive(goals::Vector{<:Term}, clauses::Vector{Clause};
+function derive(goals::Vector{<:Term}, clauses::Vector{<:AbstractClause};
                 max_steps::Real=100, options...)
     grounded = all(is_ground.(goals))
     rules = filter(c -> length(c.body) > 0, clauses)
@@ -490,10 +490,10 @@ function derive(goals::Vector{<:Term}, clauses::Vector{Clause};
     return resolve(goals, facts; options...)
 end
 
-derive(goal::Term, clauses::Vector{Clause}; options...) =
+derive(goal::Term, clauses::Vector{<:AbstractClause}; options...) =
     derive(Term[goal], clauses; options...)
 
-derive(goals::Vector{Clause}, clauses::Vector{Clause}; options...) =
+derive(goals::Vector{Clause}, clauses::Vector{<:AbstractClause}; options...) =
     derive([convert(Term, g) for g in goals], clauses; options...)
 
 const fwd_chain = derive
