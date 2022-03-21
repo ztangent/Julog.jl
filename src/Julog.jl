@@ -3,6 +3,7 @@ module Julog
 include("structs.jl")
 include("parse.jl")
 include("utils.jl")
+include("clausetable.jl")
 include("main.jl")
 
 export Const, Var, Compound, Term, Clause, Subst, ClauseTable
