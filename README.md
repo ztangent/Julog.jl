@@ -239,6 +239,13 @@ However, `to_dnf` doesn't handle the implied existential quantifier over `X`, an
 @julog or(and(not(raven(X))), and(black(X)))
 ```
 
+## Related Packages
+
+There are several other Julia packages related to Prolog and logic programming:
+
+- [HerbSWIPL.jl](https://github.com/Herb-AI/HerbSWIPL.jl) is a wrapper around SWI-Prolog that uses the Julog parser and interface.
+- [Problox.jl](https://github.com/femtomc/Problox.jl) is a lightweight Julia wrapper around [ProbLog](https://dtai.cs.kuleuven.be/problog/), a probabilistic variant of Prolog.
+
 ## Acknowledgements
 
 This implementation was made with reference to Chris Meyer's [Python interpreter for Prolog](http://www.openbookproject.net/py4fun/prolog/intro.html), as well as the unification and SLD-resolution algorithms presented in [An Introduction to Prolog](https://link.springer.com/content/pdf/bbm%3A978-3-642-41464-0%2F1.pdf) by Pierre M. Nugues.
