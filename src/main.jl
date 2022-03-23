@@ -172,7 +172,7 @@ function _unify!(src::Compound, dst::Term, src_stack, dst_stack)
 end
 
 "Handle built-in predicates"
-function handle_builtins!(queue, clauses, goal, term; options...)
+function handle_builtins!(queue::Vector{GoalTree}, clauses::ClauseTable{T}, goal::GoalTree, term::Term; options...) where {T <: AbstractClause}
     funcs = get(options, :funcs, Dict())
     occurs_check = get(options, :occurs_check, false)
     vcount = get(options, :vcount, Ref(UInt(0)))
@@ -327,8 +327,8 @@ function resolve(goals::Vector{<:Term}, clauses::ClauseTable{T}; options...)  wh
     search = get(options, :search, :bfs)::Symbol
     vcount = get(options, :vcount, Ref(UInt(0)))::Ref{UInt}
     # Construct top level goal and put it on the queue
-    queue = [GoalTree(Const(false), nothing, Vector{Term}(goals), 1, env, Subst())]
-    subst = []
+    queue = Vector{GoalTree}([GoalTree(Const(false), nothing, Vector{Term}(goals), 1, env, Subst())])
+    subst = Subst[]
     # Iterate across queue of goals
     while length(queue) > 0
         goal = (search == :dfs) ? pop!(queue) : popfirst!(queue)
