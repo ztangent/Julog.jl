@@ -1,5 +1,7 @@
 module Julog
 
+using DataStructures
+
 include("structs.jl")
 include("parse.jl")
 include("utils.jl")

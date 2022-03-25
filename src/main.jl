@@ -172,7 +172,7 @@ function _unify!(src::Compound, dst::Term, src_stack, dst_stack)
 end
 
 "Handle built-in predicates"
-function handle_builtins!(queue, clauses, goal, term; options...)
+function handle_builtins!(queue::MutableLinkedList{GoalTree}, clauses::ClauseTable{T}, goal::GoalTree, term::Term; options...) where {T <: AbstractClause}
     funcs = get(options, :funcs, Dict())
     occurs_check = get(options, :occurs_check, false)
     vcount = get(options, :vcount, Ref(UInt(0)))
@@ -264,7 +264,8 @@ function handle_builtins!(queue, clauses, goal, term; options...)
         return true
     elseif term.name == :cut
         # Remove all other goals and succeed
-        empty!(queue)
+        #empty!(queue)
+        delete!(queue, 1:length(queue))
         return true
     elseif term.name == :fail
         # Fail and skip goal
@@ -318,6 +319,7 @@ function resolve(goals::Vector{<:Term}, clauses::Vector{T}; options...)  where {
     return resolve(goals, index_clauses(clauses); options...)
 end
 
+
 function resolve(goals::Vector{<:Term}, clauses::ClauseTable{T}; options...)  where {T <: AbstractClause}
     # Unpack options
     env = Subst(get(options, :env, []))
@@ -327,11 +329,12 @@ function resolve(goals::Vector{<:Term}, clauses::ClauseTable{T}; options...)  wh
     search = get(options, :search, :bfs)::Symbol
     vcount = get(options, :vcount, Ref(UInt(0)))::Ref{UInt}
     # Construct top level goal and put it on the queue
-    queue = [GoalTree(Const(false), nothing, Vector{Term}(goals), 1, env, Subst())]
-    subst = []
+    queue = MutableLinkedList{GoalTree}()
+    push!(queue, GoalTree(Const(false), nothing, Vector{Term}(goals), 1, env, Subst()))
+    subst = Subst[]
     # Iterate across queue of goals
     while length(queue) > 0
-        goal = (search == :dfs) ? pop!(queue) : popfirst!(queue)
+        goal = popfirst!(queue)
         @debug string("Goal: ", Clause(goal.term, goal.children), " ",
                       "Env: ", goal.env)
         if goal.active > length(goal.children)
@@ -367,7 +370,7 @@ function resolve(goals::Vector{<:Term}, clauses::ClauseTable{T}; options...)  wh
             parent.env = compose!(parent.env, vmap)
             # Advance parent to next subgoal and put it back on the queue
             parent.active += 1
-            push!(queue, parent)
+            (search==:dfs) ?  pushfirst!(queue, parent) : push!(queue, parent) 
             continue
         end
         # Examine current subgoal
@@ -381,7 +384,7 @@ function resolve(goals::Vector{<:Term}, clauses::ClauseTable{T}; options...)  wh
             if success
                 @debug string("Done, returning to parent.")
                 goal.active += 1
-                push!(queue, goal)
+                (search==:dfs) ? pushfirst!(queue, goal) : push!(queue, goal)
             end
             continue
         end
@@ -391,6 +394,7 @@ function resolve(goals::Vector{<:Term}, clauses::ClauseTable{T}; options...)  wh
         # Iterate across clause set with matching heads
         matched_clauses = retrieve_clauses(clauses, term, funcs)
         matched = false
+        local_queue = MutableLinkedList{GoalTree}() # maintain a local queue for the depth first search; the new goals should be added to the global queue in this order to the front
         for c in matched_clauses
             # Freshen variables in clause
             c = freshen!(c, Subst(), vcount)
@@ -398,9 +402,15 @@ function resolve(goals::Vector{<:Term}, clauses::ClauseTable{T}; options...)  wh
             unifier = unify(term, c.head, occurs_check, funcs)
             if isnothing(unifier) continue end
             child = GoalTree(c.head, goal, copy(c.body), 1, unifier, vmap)
-            push!(queue, child)
+            (search==:dfs) ? push!(local_queue, child) : push!(queue, child)
             matched = true
         end
+
+        #update the global queue with the local one
+        while (search==:dfs) && length(local_queue) > 0
+            pushfirst!(queue, pop!(local_queue))
+        end
+        
         if !matched @debug string("Failed, no matching clauses.") end
     end
     # Goals were satisfied if we found valid substitutions
