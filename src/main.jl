@@ -329,14 +329,11 @@ function resolve(goals::Vector{<:Term}, clauses::ClauseTable{T}; options...)  wh
     search = get(options, :search, :bfs)::Symbol
     vcount = get(options, :vcount, Ref(UInt(0)))::Ref{UInt}
     # Construct top level goal and put it on the queue
-    #queue = MutableLinkedList{GoalTree}()
     queue = MutableLinkedList{GoalTree}()
     push!(queue, GoalTree(Const(false), nothing, Vector{Term}(goals), 1, env, Subst()))
-    #queue = Vector{GoalTree}([GoalTree(Const(false), nothing, Vector{Term}(goals), 1, env, Subst())])
     subst = Subst[]
     # Iterate across queue of goals
     while length(queue) > 0
-        #goal = (search == :dfs) ? pop!(queue) : popfirst!(queue)
         goal = popfirst!(queue)
         @debug string("Goal: ", Clause(goal.term, goal.children), " ",
                       "Env: ", goal.env)
@@ -373,7 +370,6 @@ function resolve(goals::Vector{<:Term}, clauses::ClauseTable{T}; options...)  wh
             parent.env = compose!(parent.env, vmap)
             # Advance parent to next subgoal and put it back on the queue
             parent.active += 1
-            #push!(queue, parent)
             (search==:dfs) ?  pushfirst!(queue, parent) : push!(queue, parent) 
             continue
         end
