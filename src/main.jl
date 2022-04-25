@@ -339,7 +339,7 @@ function resolve(goals::Vector{<:Term}, clauses::ClauseTable; options...)
     vcount = get(options, :vcount, Ref(UInt(0)))::Ref{UInt}
     # Construct top level goal and put it on the queue
     queue = [GoalTree(Const(false), nothing, Vector{Term}(goals), 1, env, Subst())]
-    subst = []
+    subst = Subst[]
     # Iterate across queue of goals
     while length(queue) > 0
         goal = (search == :dfs) ? pop!(queue) : popfirst!(queue)

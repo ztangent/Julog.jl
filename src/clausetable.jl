@@ -57,19 +57,20 @@ end
 function retrieve_clauses(table::ClauseTable{T}, term::Term, funcs::Dict=Dict())  where {T <: AbstractClause}
     clauses = Vector{T}()
     funcs = length(funcs) > 0 ? merge(default_funcs, funcs) : default_funcs
-    if term.name in keys(table)
-        subtable = table[term.name]
-        if isa(term, Compound) && length(term.args) >= 1
-            arg = term.args[1]
-            if isa(arg, Var) || arg.name in keys(funcs)
-                clauses = get(subtable, :__all__, clauses)
-            else
-                clauses = [get(subtable, Symbol(arg.name), clauses);
-                           get(subtable, :__var__, clauses)]
-            end
+    subtable = get(table, term.name, nothing)
+    if subtable === nothing
+        return clauses
+    end
+    if isa(term, Compound) && length(term.args) >= 1
+        arg = term.args[1]
+        if isa(arg, Var) || arg.name in keys(funcs)
+            clauses = get(subtable, :__all__, clauses)
         else
-            clauses = get(subtable, :__no_args__, clauses)
+            clauses = [get(subtable, Symbol(arg.name), clauses);
+                       get(subtable, :__var__, clauses)]
         end
+    else
+        clauses = get(subtable, :__no_args__, clauses)
     end
     return clauses
 end
