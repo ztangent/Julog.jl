@@ -3,6 +3,10 @@
 @test to_nnf(@julog(and(a))) == @julog a
 @test to_nnf(@julog(true => not(and(not(!a), b, or(not(c), false))))) ==
     @julog(or(not(a), not(b), c))
+@test to_nnf(@julog(not(forall(human(X), mortal(X))))) ==
+    @julog(exists(human(X), not(mortal(X))))
+@test to_nnf(@julog(not(exists(god(X), mortal(X))))) ==
+    @julog(forall(god(X), not(mortal(X))))
 
 @test to_cnf(@julog(and(a))) == @julog and(or(a))
 @test to_cnf(@julog(and(and(or(a, and(b, or(c, d))), or(e, f)), and(not(x), or(y, z))))) ==

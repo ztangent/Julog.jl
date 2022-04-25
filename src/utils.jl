@@ -175,6 +175,12 @@ function to_nnf(term::Compound)
         elseif inner.name in [:and, :or]
             args = to_nnf.(@julog(not(:a)) for a in inner.args)
             term = Compound(inner.name == :and ? :or : :and, args)
+        elseif inner.name in [:forall, :exists]
+            query, body = inner.args
+            query = to_nnf(query)
+            body = to_nnf(@julog(not(:body)))
+            name = inner.name == :forall ? :exists : :forall
+            term = Compound(name, Term[query, body])
         end
     else
         term = Compound(term.name, to_nnf.(term.args))
