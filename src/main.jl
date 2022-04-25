@@ -289,8 +289,18 @@ function handle_builtins!(queue, clauses, goal, term; options...)
         compose!(goal.env, unifier) # Update variable bindings if satisfied
         return true
     elseif term.name in comp_ops || term.name in keys(funcs)
+        defer_eval = get(options, :defer_eval, false)
         result = eval_term(term, goal.env, funcs)
-        return (isa(result, Const) && result.name == true)
+        if isa(result, Const)
+            # Return true if term evaluates to true
+            return result.name == true
+        elseif defer_eval && goal.active < length(goal.children)
+            # Defer evaluation
+            goal.children[goal.active] = goal.children[goal.active + 1]
+            goal.children[goal.active + 1] = term
+            goal.active -= 1
+            return true
+        end
     end
     return false
 end
@@ -305,14 +315,15 @@ SLD-resolution of goals with additional Prolog-like control flow.
 - `goals::Vector{<:Term}`: A list of Julog terms to be prove or query.
 - `clauses::Vector{Clause}`: A list of Julog clauses.
 - `env::Subst=Subst()`: An initial environment mapping variables to terms.
+- `funcs::Dict=Dict()`: Custom functions for evaluating terms.
+  A function `f` should be stored as `funcs[:f] = f`
 - `mode::Symbol=:all`: How results should be returned.
   `:all` returns all possible substitiutions. `:any` returns the first
   satisfying substitution found. `:interactive` prompts for continuation
   after each satisfying substitution is found.
-- `occurs_check::Bool=false`: Flag for occurs check during unification
-- `funcs::Dict=Dict()`: Custom functions for evaluating terms.
-  A function `f` should be stored as `funcs[:f] = f`
 - `search::Symbol=:bfs`: search either breadth (`:bfs`) or depth-first (`:dfs`)
+- `occurs_check::Bool=false`: Flag for occurs check during unification
+- `defer_eval::Bool=false`: Flag to defer evaluation of (custom) operators.
 """
 function resolve(goals::Vector{<:Term}, clauses::Vector{<:AbstractClause}; options...)
     return resolve(goals, index_clauses(clauses); options...)

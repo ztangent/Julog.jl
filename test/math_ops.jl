@@ -34,4 +34,11 @@ clauses = @julog [
 # Using is/2 doesn't allow us ask for all the ways to add to 5
 @test resolve(@julog(add(X, Y, 5)), clauses)[1] == false
 
+# Test normal evaluation of operators
+query = @julog [is(X, 1), is(Y, 2), (X < Y)]
+@test resolve(query, Clause[])[1] == true
+# Test deferred evaluation of operators
+query = @julog [(X < Y), is(X, 1), is(Y, 2)]
+@test resolve(query, Clause[]; defer_eval=true)[1] == true
+
 end
