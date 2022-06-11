@@ -135,7 +135,7 @@ to_term_list(v::Vector{<:Term}) =
 to_julia_list(list::Term) =
     list.name == :cons ? [list.args[1]; to_julia_list(list.args[2])] : []
 
-"Rewrite implications using and, or and not, subsume true and false."
+"Simplify by rewriting implications, flattening conjuctions and disjunctions."
 function simplify(term::Compound)
     if !(term.name in logicals) return term end
     args = simplify.(term.args)
@@ -146,12 +146,18 @@ function simplify(term::Compound)
         if length(args) == 1 return args[1]
         elseif any(a -> a.name == false, args) return Const(false)
         elseif all(a -> a.name == true, args) return Const(true)
-        else term = Compound(term.name, filter!(a -> a.name != true, args)) end
+        else
+            args = flatten_conjs(filter!(a -> a.name != true, args))
+            term = Compound(term.name, unique!(args))
+        end
     elseif term.name == :or
         if length(args) == 1 return args[1]
         elseif any(a -> a.name == true, args) return Const(true)
         elseif all(a -> a.name == false, args) return Const(false)
-        else term = Compound(term.name, filter!(a -> a.name != false, args)) end
+        else
+            args = flatten_disjs(filter!(a -> a.name != false, args))
+            term = Compound(term.name, unique!(args))
+        end
     elseif term.name in [:not, :!]
         if args[1].name == true return Const(false)
         elseif args[1].name == false return Const(true)
