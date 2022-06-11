@@ -318,7 +318,7 @@ SLD-resolution of goals with additional Prolog-like control flow.
 - `funcs::Dict=Dict()`: Custom functions for evaluating terms.
   A function `f` should be stored as `funcs[:f] = f`
 - `mode::Symbol=:all`: How results should be returned.
-  `:all` returns all possible substitiutions. `:any` returns the first
+  `:all` returns all possible substitutions. `:any` returns the first
   satisfying substitution found. `:interactive` prompts for continuation
   after each satisfying substitution is found.
 - `search::Symbol=:bfs`: search either breadth (`:bfs`) or depth-first (`:dfs`)
