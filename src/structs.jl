@@ -1,35 +1,64 @@
-"Julog terms are variables, constants, or compound terms."
+"""
+    Term
+
+Represents a term or expression in first-order logic, including variables,
+constants, or compound terms.
+"""
 abstract type Term end
 
-"Julog constants."
+"""
+    Const
+
+Represents a named constant term with no arguments.
+"""
 struct Const <: Term
     name::Any
 end
 
-"Julog variables."
+"""
+    Var
+
+Represents a variable in a first-order expression.
+"""
 struct Var <: Term
     name::Union{Symbol,UInt}
 end
 
-"Julog compound terms (e.g. )."
+"""
+    Compound
+
+A `Compound` represents a term with zero or more arguments. When a `Compound`
+has zero arguments, it is functionally equivalent to a `Const.`
+"""
 struct Compound <: Term
     name::Symbol
     args::Vector{Term}
 end
 
-"Julog abstract type for clauses"
+"""
+    AbstractClause
+
+Abstract type for clauses in a logic program.
+"""
 abstract type AbstractClause end
 
-"Julog clauses are definite Horn clauses of the form [head] <<= [body]."
+"""
+    Clause
+
+A definite Horn clause of the form `[head] <<= [body]`.
+"""
 struct Clause <: AbstractClause
     head::Term
     body::Vector{Term}
 end
 
-"Substitution mapping from variables to terms."
+"""
+    Subst
+
+Substitution mapping from variables to terms. Alias for `Dict{Var,Term}`.
+"""
 const Subst = Dict{Var,Term}
 
-"Check if two terms are exactly equal."
 Base.:(==)(t1::Term, t2::Term) = false
 Base.:(==)(t1::Const, t2::Const) = t1.name == t2.name
 Base.:(==)(t1::Var, t2::Var) = t1.name == t2.name
@@ -39,31 +68,25 @@ Base.:(==)(t1::Compound, t2::Compound) =
     (t1.name == t2.name && length(t1.args) == length(t2.args) &&
             all(a1 == a2 for (a1, a2) in zip(t1.args, t2.args)))
 
-"Compute hash of Julog term from name and arguments."
 Base.hash(t::Term, h::UInt) = error("Not implemented.")
 Base.hash(t::Const, h::UInt) = hash(t.name, h)
 Base.hash(t::Var, h::UInt) = hash(t.name, h)
 Base.hash(t::Compound, h::UInt) = isempty(t.args) ?
     hash(t.name, h) : hash(t.name, hash(Tuple(t.args), h))
 
-"Check if two clauses are exactly equal."
 Base.:(==)(c1::Clause, c2::Clause) =
     (c1.head == c2.head && length(c1.body) == length(c2.body) &&
      all(t1 == t2 for (t1, t2) in zip(c1.body, c2.body)))
 
-"Compute hash of Julog clause from head and body."
 Base.hash(c::Clause, h::UInt) = hash(c.head, hash(Tuple(c.body), h))
 
-"Convert Julog term to Horn clause."
 Base.convert(::Type{Clause}, term::Term) = Clause(term, [])
 
-"Convert Horn clause to Julog term."
 function Base.convert(::Type{Term}, clause::Clause)
     if length(clause.body) == 0 return clause.head end
     return Compound(:(=>), Term[Compound(:and, copy(clause.body)), clause.head])
 end
 
-"Show Julog terms as they would be parsed."
 function Base.show(io::IO, t::Term)
     print(io, t.name)
 end
@@ -92,7 +115,6 @@ function Base.show(io::IO, t::Compound)
     end
 end
 
-"Show Julog clauses as they would be parsed."
 function Base.show(io::IO, c::Clause)
     if length(c.body) == 0
         print(io, c.head)
@@ -101,7 +123,6 @@ function Base.show(io::IO, c::Clause)
     end
 end
 
-"Show variable substitions."
 function Base.show(io::IO, subst::Subst)
     print(io, "{", join(["$k => $v" for (k, v) in subst], ", ")..., "}")
 end

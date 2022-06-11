@@ -74,7 +74,7 @@ function eval_term(term::Compound, env::Subst, funcs::Dict=Dict())
 end
 
 """
-    unify(src, dst[, occurs_check])
+    unify(src, dst[, occurs_check, funcs])
 
 Unifies src with dst and returns a dictionary of any substitutions needed.
 
