@@ -12,19 +12,21 @@ GoalTree(g::GoalTree) =
     GoalTree(g.term, g.parent, copy(g.children), g.active, copy(g.env), g.vmap)
 
 "Built-in arithmetic operations."
-const math_ops = Set([:+, :-, :*, :/, :mod])
+const math_ops = (:+, :-, :*, :/, :mod)
 "Built-in comparison operations."
-const comp_ops = Set([:(==), :<=, :>=, :<, :>, :(!=)])
+const comp_ops = (:(==), :<=, :>=, :<, :>, :(!=))
 "Built-in operators."
-const ops = union(math_ops, comp_ops)
+const ops = Tuple(union(math_ops, comp_ops))
 "Built-in functions."
 const default_funcs = Dict(op => eval(op) for op in ops)
 "Built-in logical connectives."
-const logicals = Set([true, false, :and, :or, :not, :!,
-                      :exists, :forall, :imply, :(=>)])
+const logicals = (true, false, :and, :or, :not, :!,
+                  :exists, :forall, :imply, :(=>))
 "Built-in predicates with special handling during SLD resolution."
-const builtins = union(comp_ops, logicals,
-    Set([:is, :call, :unifies, :≐, :cut, :fail, :findall, :countall]))
+const builtins = Tuple(union(
+    comp_ops, logicals,
+    (:is, :call, :unifies, :≐, :cut, :fail, :findall, :countall)
+))
 
 """
     eval_term(term, env[, funcs])

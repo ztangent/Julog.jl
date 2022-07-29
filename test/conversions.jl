@@ -1,5 +1,8 @@
 @testset "Logical form conversions" begin
 
+@test to_nnf(@julog(a)) == @julog a
+@test to_nnf(@julog(and())) == @julog true
+@test to_nnf(@julog(or())) == @julog false
 @test to_nnf(@julog(and(a))) == @julog a
 @test to_nnf(@julog(true => not(and(not(!a), b, or(not(c), false))))) ==
     @julog(or(not(a), not(b), c))

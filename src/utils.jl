@@ -139,7 +139,7 @@ to_julia_list(list::Term) =
 function simplify(term::Compound)
     if !(term.name in logicals) return term end
     args = simplify.(term.args)
-    if term.name in [:imply, :(=>)]
+    if term.name in (:imply, :(=>))
         cond, body = args
         return simplify(@julog or(not(:cond), and(:cond, :body)))
     elseif term.name == :and
@@ -158,7 +158,7 @@ function simplify(term::Compound)
             args = flatten_disjs(filter!(a -> a.name != false, args))
             term = Compound(term.name, unique!(args))
         end
-    elseif term.name in [:not, :!]
+    elseif term.name in (:not, :!)
         if args[1].name == true return Const(false)
         elseif args[1].name == false return Const(true)
         else return Compound(:not, args) end
@@ -171,24 +171,25 @@ simplify(term::Var) = term
 "Convert a term to negation normal form."
 function to_nnf(term::Compound)
     term = simplify(term)
-    if !(term.name in logicals) return term end
-    if term.name in [:not, :!]
+    if term.name in (:not, :!)
         inner = term.args[1]
-        if inner.name in [:not, :!]
+        if inner.name in (:not, :!)
             term = inner.args[1]
-        elseif inner.name in [true, false]
+        elseif inner.name in (true, false)
             term = Const(!inner.name)
-        elseif inner.name in [:and, :or]
+        elseif inner.name in (:and, :or)
             args = to_nnf.(@julog(not(:a)) for a in inner.args)
             term = Compound(inner.name == :and ? :or : :and, args)
-        elseif inner.name in [:forall, :exists]
+        elseif inner.name in (:forall, :exists)
             query, body = inner.args
             query = to_nnf(query)
             body = to_nnf(@julog(not(:body)))
             name = inner.name == :forall ? :exists : :forall
             term = Compound(name, Term[query, body])
         end
-    else
+    elseif term.name in (true, false)
+        return term
+    elseif term.name in logicals
         term = Compound(term.name, to_nnf.(term.args))
     end
     return term
@@ -199,7 +200,7 @@ to_nnf(term::Var) = term
 "Convert a term to conjunctive normal form."
 function to_cnf(term::Compound)
     term = to_nnf(term)
-    if !(term.name in [:and, :or]) return @julog and(or(:term)) end
+    if !(term.name in (:and, :or)) return @julog and(or(:term)) end
     subterms = to_cnf.(term.args)
     if term.name == :and
         args = foldl(vcat, [a.args for a in subterms]; init=Compound[])
@@ -226,7 +227,7 @@ to_cnf(term::Var) = @julog and(or(:term))
 "Convert a term to disjunctive normal form."
 function to_dnf(term::Compound)
     term = to_nnf(term)
-    if !(term.name in [:and, :or]) return @julog or(and(:term)) end
+    if !(term.name in (:and, :or)) return @julog or(and(:term)) end
     subterms = to_dnf.(term.args)
     if term.name == :or
         args = foldl(vcat, (a.args for a in subterms); init=Compound[])
