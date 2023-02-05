@@ -1,6 +1,6 @@
 # Julog.jl
 
-![GitHub Workflow Status](https://img.shields.io/github/workflow/status/ztangent/Julog.jl/CI)
+![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/ztangent/Julog.jl/ci.yml?branch=master)
 ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/ztangent/Julog.jl)
 ![License](https://img.shields.io/github/license/ztangent/Julog.jl?color=lightgrey)
 [![Documentation](https://img.shields.io/badge/docs-stable-blue.svg)](https://juliahub.com/docs/Julog)
