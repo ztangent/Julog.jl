@@ -114,7 +114,7 @@ However, several important operators differ from Prolog, as shown by the example
 
 In words, `<<=` replaces the Prolog turnstile `:-`, `<<= true` or `'` replaces `.` when stating facts, `!` replaces `\+` for negation, there is no longer a special operator for `cut`, `&` replaces `,` in the bodies of definite clauses, and there is no `or` operator like the `;` in Prolog.
 
-In addition, when constructing Prolog-style linked-lists, the syntax `@julog list[a, b, c]` should be used when the list is not nested within any other compound term. This is because the `@julog [a, b, c]` syntax is reserved for creating a *Julia* list of Julog objects, such as a list of Julog clauses. Lists which are nested within other term, e.g., `member(b, [a, b, c])`, are parsed in the same way as Prolog.
+In addition, when constructing Prolog-style linked-lists, the syntax `@julog list[a, b, c]` should be used when the list is not nested within any other compound term. This is because the `@julog [a, b, c]` syntax is reserved for creating a *Julia* list of Julog objects, such as a list of Julog clauses. Lists which are nested within other term, e.g., `member(b, [a, b, c])`, are parsed in the same way as Prolog. (Note that list predicates like `member` are not [built-in predicates](#built-in-predicates), and have to be manually defined as a clause.)
 
 If Prolog syntax is preferred, the `@prolog` macro and `parse_prolog` functions can be used to convert Prolog strings directly to Julog constructs, while `write_prolog` converts a list of Julog clauses to a Prolog string. However, this conversion cannot presently handle all of Prolog syntax (e.g., nested infix operators or comparison operators such as `=:=`), and should be used with caution.
 
